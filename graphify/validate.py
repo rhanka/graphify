@@ -1,3 +1,4 @@
+# validate extraction JSON against the graphify schema before graph assembly
 from __future__ import annotations
 
 VALID_FILE_TYPES = {"code", "document", "paper"}

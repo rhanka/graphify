@@ -1,9 +1,10 @@
+"""Tests for analyze.py."""
 import json
 import networkx as nx
 from pathlib import Path
-from graphify.graph_builder import build_from_json
-from graphify.clusterer import cluster
-from graphify.analyzer import god_nodes, surprising_connections, _is_concept_node
+from graphify.build import build_from_json
+from graphify.cluster import cluster
+from graphify.analyze import god_nodes, surprising_connections, _is_concept_node, graph_diff
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -114,3 +115,65 @@ def test_surprising_connections_have_required_keys():
         assert "target" in s
         assert "source_files" in s
         assert "confidence" in s
+
+
+# --- graph_diff tests ---
+
+def _make_simple_graph(nodes, edges):
+    """Helper: build a small nx.Graph from node/edge specs."""
+    G = nx.Graph()
+    for node_id, label in nodes:
+        G.add_node(node_id, label=label, source_file="test.py")
+    for src, tgt, rel, conf in edges:
+        G.add_edge(src, tgt, relation=rel, confidence=conf)
+    return G
+
+
+def test_graph_diff_new_nodes():
+    G_old = _make_simple_graph([("n1", "Alpha"), ("n2", "Beta")], [])
+    G_new = _make_simple_graph([("n1", "Alpha"), ("n2", "Beta"), ("n3", "Gamma")], [])
+    diff = graph_diff(G_old, G_new)
+    assert len(diff["new_nodes"]) == 1
+    assert diff["new_nodes"][0]["id"] == "n3"
+    assert diff["new_nodes"][0]["label"] == "Gamma"
+    assert diff["removed_nodes"] == []
+    assert "1 new node" in diff["summary"]
+
+
+def test_graph_diff_removed_nodes():
+    G_old = _make_simple_graph([("n1", "Alpha"), ("n2", "Beta"), ("n3", "Gamma")], [])
+    G_new = _make_simple_graph([("n1", "Alpha"), ("n2", "Beta")], [])
+    diff = graph_diff(G_old, G_new)
+    assert diff["new_nodes"] == []
+    assert len(diff["removed_nodes"]) == 1
+    assert diff["removed_nodes"][0]["id"] == "n3"
+    assert "removed" in diff["summary"]
+
+
+def test_graph_diff_new_edges():
+    nodes = [("n1", "Alpha"), ("n2", "Beta"), ("n3", "Gamma")]
+    G_old = _make_simple_graph(nodes, [("n1", "n2", "calls", "EXTRACTED")])
+    G_new = _make_simple_graph(
+        nodes,
+        [("n1", "n2", "calls", "EXTRACTED"), ("n2", "n3", "uses", "INFERRED")],
+    )
+    diff = graph_diff(G_old, G_new)
+    assert len(diff["new_edges"]) == 1
+    new_edge = diff["new_edges"][0]
+    assert new_edge["relation"] == "uses"
+    assert new_edge["confidence"] == "INFERRED"
+    assert diff["removed_edges"] == []
+    assert "new edge" in diff["summary"]
+
+
+def test_graph_diff_empty_diff():
+    nodes = [("n1", "Alpha"), ("n2", "Beta")]
+    edges = [("n1", "n2", "calls", "EXTRACTED")]
+    G_old = _make_simple_graph(nodes, edges)
+    G_new = _make_simple_graph(nodes, edges)
+    diff = graph_diff(G_old, G_new)
+    assert diff["new_nodes"] == []
+    assert diff["removed_nodes"] == []
+    assert diff["new_edges"] == []
+    assert diff["removed_edges"] == []
+    assert diff["summary"] == "no changes"

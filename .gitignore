@@ -7,3 +7,4 @@ dist/
 build/
 .pytest_cache/
 *.so
+.graphify/

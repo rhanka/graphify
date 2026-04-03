@@ -1,3 +1,4 @@
+# assemble node+edge dicts into a NetworkX graph, preserving edge direction
 from __future__ import annotations
 import networkx as nx
 
@@ -7,11 +8,12 @@ def build_from_json(extraction: dict) -> nx.Graph:
     for node in extraction.get("nodes", []):
         G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
     for edge in extraction.get("edges", []):
-        G.add_edge(
-            edge["source"],
-            edge["target"],
-            **{k: v for k, v in edge.items() if k not in ("source", "target")},
-        )
+        attrs = {k: v for k, v in edge.items() if k not in ("source", "target")}
+        # Preserve original edge direction — undirected graphs lose it otherwise,
+        # causing display functions to show edges backwards.
+        attrs["_src"] = edge["source"]
+        attrs["_tgt"] = edge["target"]
+        G.add_edge(edge["source"], edge["target"], **attrs)
     return G
 
 

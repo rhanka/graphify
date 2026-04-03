@@ -1,6 +1,25 @@
+"""Leiden community detection on NetworkX graphs. Splits oversized communities. Returns cohesion scores."""
 from __future__ import annotations
 import networkx as nx
 from graspologic.partition import leiden
+
+
+def build_graph(nodes: list[dict], edges: list[dict]) -> nx.Graph:
+    """Build a NetworkX graph from graphify node/edge dicts.
+
+    Preserves original edge direction as _src/_tgt attributes so that
+    display functions can show relationships in the correct direction,
+    even though the graph is undirected for structural analysis.
+    """
+    G = nx.Graph()
+    for n in nodes:
+        G.add_node(n["id"], **{k: v for k, v in n.items() if k != "id"})
+    for e in edges:
+        attrs = {k: v for k, v in e.items() if k not in ("source", "target")}
+        attrs["_src"] = e["source"]
+        attrs["_tgt"] = e["target"]
+        G.add_edge(e["source"], e["target"], **attrs)
+    return G
 
 _MAX_COMMUNITY_FRACTION = 0.25   # communities larger than 25% of graph get split
 _MIN_SPLIT_SIZE = 10             # only split if community has at least this many nodes

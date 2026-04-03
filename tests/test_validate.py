@@ -1,5 +1,5 @@
 import pytest
-from graphify.validator import validate_extraction, assert_valid
+from graphify.validate import validate_extraction, assert_valid
 
 VALID = {
     "nodes": [

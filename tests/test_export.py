@@ -1,9 +1,9 @@
 import json
 import tempfile
 from pathlib import Path
-from graphify.graph_builder import build_from_json
-from graphify.clusterer import cluster
-from graphify.exporter import to_json, to_cypher
+from graphify.build import build_from_json
+from graphify.cluster import cluster
+from graphify.export import to_json, to_cypher
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

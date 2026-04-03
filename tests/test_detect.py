@@ -1,5 +1,5 @@
 from pathlib import Path
-from graphify.detector import classify_file, count_words, detect, FileType, _looks_like_paper
+from graphify.detect import classify_file, count_words, detect, FileType, _looks_like_paper
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -16,7 +16,12 @@ def test_classify_pdf():
     assert classify_file(Path("paper.pdf")) == FileType.PAPER
 
 def test_classify_unknown_returns_none():
-    assert classify_file(Path("image.png")) is None
+    assert classify_file(Path("archive.zip")) is None
+
+def test_classify_image():
+    assert classify_file(Path("screenshot.png")) == FileType.IMAGE
+    assert classify_file(Path("design.jpg")) == FileType.IMAGE
+    assert classify_file(Path("diagram.webp")) == FileType.IMAGE
 
 def test_count_words_sample_md():
     words = count_words(FIXTURES / "sample.md")

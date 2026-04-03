@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from graphify.graph_builder import build_from_json, build
+from graphify.build import build_from_json, build
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -39,4 +39,3 @@ def test_build_merges_multiple_extractions():
     G = build([ext1, ext2])
     assert G.number_of_nodes() == 2
     assert G.number_of_edges() == 1
-
