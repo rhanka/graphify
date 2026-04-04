@@ -1,5 +1,6 @@
 """graphify CLI — `graphify install` sets up the Claude Code skill."""
 from __future__ import annotations
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -56,13 +57,28 @@ def main() -> None:
         print("Usage: graphify <command>")
         print()
         print("Commands:")
-        print("  install   copy skill to ~/.claude/skills/ and register in CLAUDE.md")
+        print("  install                 copy skill to ~/.claude/skills/ and register in CLAUDE.md")
+        print("  benchmark [graph.json]  measure token reduction vs naive full-corpus approach")
         print()
         return
 
     cmd = sys.argv[1]
     if cmd == "install":
         install()
+    elif cmd == "benchmark":
+        from graphify.benchmark import run_benchmark, print_benchmark
+        graph_path = sys.argv[2] if len(sys.argv) > 2 else ".graphify/graph.json"
+        # Try to load corpus_words from detect output
+        corpus_words = None
+        detect_path = Path(".graphify_detect.json")
+        if detect_path.exists():
+            try:
+                detect_data = json.loads(detect_path.read_text())
+                corpus_words = detect_data.get("total_words")
+            except Exception:
+                pass
+        result = run_benchmark(graph_path, corpus_words=corpus_words)
+        print_benchmark(result)
     else:
         print(f"error: unknown command '{cmd}'", file=sys.stderr)
         print("Run 'graphify --help' for usage.", file=sys.stderr)

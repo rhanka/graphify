@@ -19,6 +19,14 @@ dependencies = [
     "tree-sitter-typescript",
     "tree-sitter-go",
     "tree-sitter-rust",
+    "tree-sitter-java",
+    "tree-sitter-c",
+    "tree-sitter-cpp",
+    "tree-sitter-ruby",
+    "tree-sitter-c-sharp",
+    "tree-sitter-kotlin",
+    "tree-sitter-scala",
+    "tree-sitter-php",
 ]
 
 [project.optional-dependencies]

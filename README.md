@@ -202,6 +202,7 @@ graphify/
 ├── export.py     Obsidian vault, graph.json, graph.html, graph.svg, Neo4j Cypher, Canvas
 ├── ingest.py     fetch URLs (arXiv, Twitter/X, PDF, any webpage); save Q&A to .graphify/memory/
 ├── cache.py      SHA256-based per-file extraction cache; check_semantic_cache / save_semantic_cache
+├── security.py   URL validation (http/https only), safe fetch with size cap, path guards, label sanitisation
 ├── validate.py   JSON schema checks on extraction output
 ├── serve.py      MCP stdio server — query_graph, get_node, get_neighbors, shortest_path, god_nodes
 └── watch.py      fs watcher, writes flag file when new files appear
@@ -209,6 +210,7 @@ graphify/
 skills/graphify/
 └── skill.md      the Claude Code skill — the full pipeline the agent runs step by step
 
-tests/            142 tests, one file per module
+SECURITY.md       threat model, mitigations, vulnerability reporting
+tests/            163 tests, one file per module
 pyproject.toml    pip install graphify  |  pip install graphify[mcp,neo4j,pdf,watch]
 ```

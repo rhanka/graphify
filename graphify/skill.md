@@ -92,6 +92,8 @@ Then act on it:
 
 ### Step 3 — Extract entities and relationships
 
+**Before starting:** note whether `--mode deep` was given. You must pass `DEEP_MODE=true` to every subagent in Step B2 if it was. Track this from the original invocation — do not lose it.
+
 This step has two parts: **structural extraction** (deterministic, free) then **semantic extraction** (Claude, costs tokens).
 
 #### Part A — Structural extraction for code files
@@ -496,28 +498,9 @@ print('graph.svg written — embeds in Obsidian, Notion, GitHub READMEs')
 "
 ```
 
-### Step 7c — Obsidian export (only if --obsidian flag)
+### Step 7c — SVG export already covered in Step 7b above
 
-```bash
-python3 -c "
-import sys, json
-from graphify.build import build_from_json
-from graphify.export import to_obsidian
-from pathlib import Path
-
-extraction = json.loads(Path('.graphify_extract.json').read_text())
-analysis   = json.loads(Path('.graphify_analysis.json').read_text())
-labels_raw = json.loads(Path('.graphify_labels.json').read_text()) if Path('.graphify_labels.json').exists() else {}
-
-G = build_from_json(extraction)
-communities = {int(k): v for k, v in analysis['communities'].items()}
-labels = {int(k): v for k, v in labels_raw.items()}
-
-n = to_obsidian(G, communities, '.graphify/obsidian', community_labels=labels or None, cohesion=cohesion)
-print(f'Obsidian vault written: {n} notes in .graphify/obsidian/')
-print('Open .graphify/obsidian/ as a vault in Obsidian to explore the graph.')
-"
-```
+_(No separate --obsidian flag — Obsidian vault is always generated in Step 6 by default.)_
 
 ### Step 7d — MCP server (only if --mcp flag)
 
@@ -525,7 +508,7 @@ print('Open .graphify/obsidian/ as a vault in Obsidian to explore the graph.')
 python3 -m graphify.serve .graphify/graph.json
 ```
 
-This starts a stdio MCP server that exposes tools: `query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes`, `graph_stats`. Add to Claude Desktop or any MCP-compatible agent orchestrator so other agents can query the graph live.
+This starts a stdio MCP server that exposes tools: `query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes`, `graph_stats`, `shortest_path`. Add to Claude Desktop or any MCP-compatible agent orchestrator so other agents can query the graph live.
 
 To configure in Claude Desktop, add to `claude_desktop_config.json`:
 ```json
@@ -1007,12 +990,19 @@ import sys
 from graphify.ingest import ingest
 from pathlib import Path
 
-out = ingest('URL', Path('./raw'), author='AUTHOR', contributor='CONTRIBUTOR')
-print(f'Saved to {out}')
+try:
+    out = ingest('URL', Path('./raw'), author='AUTHOR', contributor='CONTRIBUTOR')
+    print(f'Saved to {out}')
+except ValueError as e:
+    print(f'error: {e}', file=sys.stderr)
+    sys.exit(1)
+except RuntimeError as e:
+    print(f'error: {e}', file=sys.stderr)
+    sys.exit(1)
 "
 ```
 
-Replace `URL` with the actual URL, `AUTHOR` with the user's name if provided, `CONTRIBUTOR` likewise. After saving, automatically run the `--update` pipeline on `./raw` to merge the new file into the existing graph.
+Replace `URL` with the actual URL, `AUTHOR` with the user's name if provided, `CONTRIBUTOR` likewise. If the command exits with an error, tell the user what went wrong — do not silently continue. After a successful save, automatically run the `--update` pipeline on `./raw` to merge the new file into the existing graph.
 
 Supported URL types (auto-detected):
 - Twitter/X → fetched via oEmbed, saved as `.md` with tweet text and author

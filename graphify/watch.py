@@ -6,6 +6,7 @@ from pathlib import Path
 
 _WATCHED_EXTENSIONS = {
     ".py", ".ts", ".js", ".go", ".rs", ".java", ".cpp", ".c", ".rb", ".swift", ".kt",
+    ".cs", ".scala", ".php", ".cc", ".cxx", ".hpp", ".h", ".kts",
     ".md", ".txt", ".rst", ".pdf",
     ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
 }

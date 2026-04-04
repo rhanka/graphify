@@ -58,7 +58,9 @@ def test_extract_merges_multiple_files():
 
 def test_collect_files_from_dir():
     files = collect_files(FIXTURES)
-    supported = {".py", ".js", ".ts", ".tsx", ".go", ".rs"}
+    supported = {".py", ".js", ".ts", ".tsx", ".go", ".rs",
+                 ".java", ".c", ".cpp", ".cc", ".cxx", ".rb",
+                 ".cs", ".kt", ".kts", ".scala", ".php", ".h", ".hpp"}
     assert all(f.suffix in supported for f in files)
     assert len(files) > 0
 
