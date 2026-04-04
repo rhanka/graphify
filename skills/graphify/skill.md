@@ -17,7 +17,7 @@ Turn any folder of files into a navigable knowledge graph with community detecti
 /graphify <path> --update                             # incremental - re-extract only new/changed files
 /graphify <path> --cluster-only                       # rerun clustering on existing graph
 /graphify <path> --no-viz                             # skip visualization, just report + JSON
-/graphify <path> --html                               # also export graph.html (pyvis, browser-based)
+/graphify <path> --html                               # also export graph.html (interactive vis.js, browser-based)
 /graphify <path> --svg                                # also export graph.svg (embeds in Notion, GitHub)
 /graphify <path> --neo4j                              # generate graphify-out/cypher.txt for Neo4j
 /graphify <path> --neo4j-push bolt://localhost:7687   # push directly to Neo4j
@@ -412,7 +412,7 @@ print('  _COMMUNITY_* - overview notes with cohesion scores and dataview queries
 "
 ```
 
-**Only if `--html` flag was passed**, also generate pyvis HTML:
+**Only if `--html` flag was passed**, also generate :
 
 ```bash
 python3 -c "
@@ -430,7 +430,7 @@ communities = {int(k): v for k, v in analysis['communities'].items()}
 labels = {int(k): v for k, v in labels_raw.items()}
 
 if G.number_of_nodes() > 5000:
-    print(f'Graph has {G.number_of_nodes()} nodes - too large for pyvis. Use Obsidian vault instead.')
+    print(f'Graph has {G.number_of_nodes()} nodes - too large for HTML viz. Use Obsidian vault instead.')
 else:
     generate_html(G, communities, 'graphify-out/graph.html', community_labels=labels or None)
     print('graph.html written')
@@ -522,7 +522,27 @@ To configure in Claude Desktop, add to `claude_desktop_config.json`:
 }
 ```
 
-### Step 8 - Save manifest, update cost tracker, clean up, and report
+### Step 8 - Token reduction benchmark (only if total_words > 5000)
+
+If `total_words` from `.graphify_detect.json` is greater than 5,000, run:
+
+```bash
+python3 -c "
+import json
+from graphify.benchmark import run_benchmark, print_benchmark
+from pathlib import Path
+
+detection = json.loads(Path('.graphify_detect.json').read_text())
+result = run_benchmark('graphify-out/graph.json', corpus_words=detection['total_words'])
+print_benchmark(result)
+"
+```
+
+Print the output directly in chat. If `total_words <= 5000`, skip silently - the graph value is structural clarity, not token compression, for small corpora.
+
+---
+
+### Step 9 - Save manifest, update cost tracker, clean up, and report
 
 ```bash
 python3 -c "
@@ -719,7 +739,7 @@ print(f'Re-clustered: {len(communities)} communities')
 "
 ```
 
-Then run Steps 5–8 as normal (label communities, generate viz, clean up, report).
+Then run Steps 5–9 as normal (label communities, generate viz, benchmark, clean up, report).
 
 ---
 
@@ -1042,4 +1062,4 @@ For the personal inspo use case: leave this running in a terminal. Drop tweets, 
 - Never skip the corpus check warning.
 - Always show token cost in the report.
 - Never hide cohesion scores behind symbols - show the raw number.
-- Never run pyvis on a graph with more than 5,000 nodes without warning the user.
+- Never run HTML viz on a graph with more than 5,000 nodes without warning the user.

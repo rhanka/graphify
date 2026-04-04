@@ -12,6 +12,7 @@
 
 ```
 graphify-out/
+├── graph.html       interactive graph - click nodes, search, filter by community, open in any browser
 ├── obsidian/        open as Obsidian vault - visual graph, wikilinks, filter by community
 ├── GRAPH_REPORT.md  what the graph found: god nodes, surprising connections, suggested questions
 ├── graph.json       persistent graph - query it weeks later without re-reading anything
@@ -31,11 +32,13 @@ graphify takes that observation and builds the missing infrastructure:
 | Claude hallucinates missing links | `EXTRACTED` / `INFERRED` / `AMBIGUOUS` - honest about what was found vs guessed |
 | Context resets every session | Memory feedback loop - what you ask grows the graph on `--update` |
 | Only works on text | PDFs, images, screenshots, tweets, any language via vision |
+| Reading everything costs tokens | **71.5x token reduction** on large mixed corpora - query the graph, not the files |
 
 **What LLMs get wrong without it:** Naive summarization fills every gap confidently. You get output that sounds complete but you can't tell what was actually in the files vs invented. And next session, it's all gone.
 
 **What graphify does differently:**
 
+- **71.5x token reduction** - on a mixed corpus (Karpathy repos + papers + images), querying the graph costs 71.5x fewer tokens than reading the raw files. The benchmark runs automatically after every `/graphify` run.
 - **Persistent graph** - relationships stored in `graphify-out/graph.json`, survive across sessions. Query weeks later without re-reading anything.
 - **Honest audit trail** - every edge tagged `EXTRACTED` (explicitly stated), `INFERRED` (call-graph or reasonable deduction), or `AMBIGUOUS` (flagged for review). You always know what was found vs invented.
 - **Cross-document surprise** - Leiden community detection finds clusters, then surfaces cross-community connections: the things you would never think to ask about directly.
@@ -105,7 +108,6 @@ All commands are typed inside Claude Code:
 /graphify path "DigestAuth" "Response"      # shortest path between two concepts
 /graphify explain "SwinTransformer"         # plain-language node explanation
 
-/graphify ./raw --html             # also export graph.html (browser, no Obsidian needed)
 /graphify ./raw --svg              # also export graph.svg (embeds in Notion, GitHub)
 /graphify ./raw --graphml          # also export graph.graphml (Gephi, yEd, any GraphML tool)
 /graphify ./raw --neo4j            # generate cypher.txt for Neo4j import
@@ -127,16 +129,19 @@ After running, Claude outputs three things directly in chat:
 
 **God nodes** - highest-degree concepts (what everything connects through)
 
-**Surprising connections** - ranked by a composite surprise score, not just confidence. A code↔paper edge scores higher than code↔code. A cross-repo connection scores higher than same-repo. Each result includes a plain-English `why` explaining what makes it non-obvious.
+**Surprising connections** - ranked by a composite surprise score, not just confidence. A code-paper edge scores higher than code-code. A cross-repo connection scores higher than same-repo. Each result includes a plain-English `why` explaining what makes it non-obvious.
 
 **Suggested questions** - 4-5 questions the graph is uniquely positioned to answer, with the reason why (which bridge node makes it interesting, which community boundary it crosses)
 
 The full GRAPH_REPORT.md adds community summaries with cohesion scores and a list of ambiguous edges for review.
 
+**Token reduction benchmark** - automatically printed after every run on corpora over 5,000 words. Shows how many fewer tokens querying the graph costs vs reading the raw files directly.
+
 ## Key files explained
 
 | File | Purpose |
 |------|---------|
+| `graph.html` | Interactive vis.js graph. Node size = degree. Click any node for details + clickable neighbors. Search by name. Filter by community. Opens in any browser. |
 | `GRAPH_REPORT.md` | The audit report. God nodes, surprising connections, community cohesion scores, ambiguous edge list, suggested questions. |
 | `graph.json` | Persistent graph in node-link format. Load it with NetworkX or push to Neo4j. Survives sessions. |
 | `obsidian/` | Wikilink vault. Open in Obsidian → enable graph view → see communities as clusters. Filter by tag, search across everything. |
@@ -205,7 +210,7 @@ Each includes the full graph output and an honest evaluation of what the skill g
 | Community detection | Leiden via graspologic | Better than K-means for sparse graphs |
 | Code parsing | tree-sitter | Multi-language AST, deterministic, zero hallucination |
 | Extraction | Claude (parallel subagents) | Reads anything, outputs structured graph data |
-| Visualization | Obsidian vault | Native graph view, wikilinks, no server needed |
+| Visualization | vis.js (HTML) + Obsidian vault | Interactive browser graph + wikilink vault, no server needed |
 
 No Neo4j required. No dashboards. No server. Runs entirely locally.
 
@@ -219,12 +224,13 @@ graphify/
 ├── cluster.py    Leiden community detection, cohesion scoring
 ├── analyze.py    god nodes, bridge nodes, surprising connections, suggested questions, graph diff
 ├── report.py     render GRAPH_REPORT.md
-├── export.py     Obsidian vault, graph.json, graph.html, graph.svg, graph.graphml, Neo4j Cypher, Canvas
+├── export.py     Obsidian vault, graph.json, graph.html (vis.js), graph.svg, graph.graphml, Neo4j Cypher, Canvas
 ├── ingest.py     fetch URLs (arXiv, Twitter/X, PDF, any webpage); save Q&A to graphify-out/memory/
 ├── cache.py      SHA256-based per-file extraction cache; check_semantic_cache / save_semantic_cache
 ├── security.py   URL validation (http/https only), safe fetch with size cap, path guards, label sanitisation
 ├── validate.py   JSON schema checks on extraction output
 ├── serve.py      MCP stdio server - query_graph, get_node, get_neighbors, shortest_path, god_nodes
+├── benchmark.py  token reduction benchmark - corpus tokens vs graph query tokens
 └── watch.py      fs watcher, writes flag file when new files appear
 
 skills/graphify/
@@ -233,6 +239,6 @@ skills/graphify/
 ARCHITECTURE.md   module responsibilities, extraction schema, how to add a language
 SECURITY.md       threat model, mitigations, vulnerability reporting
 worked/           eval reports from real corpora (karpathy-repos, httpx, mixed-corpus)
-tests/            218 tests, one file per module
-pyproject.toml    pip install graphify  |  pip install graphify[mcp,neo4j,pdf,watch]
+tests/            223 tests, one file per module
+pyproject.toml    pip install graphifyy  |  pip install graphifyy[mcp,neo4j,pdf,watch]
 ```

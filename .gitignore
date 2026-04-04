@@ -13,3 +13,5 @@ build/
 *.so
 *.egg
 .graphify/
+graphify-out/
+.graphify_*.json
