@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphifyy"
-version = "0.1.8"
+version = "0.1.9"
 description = "Claude Code skill - turn any folder of code, docs, papers, images, or tweets into a queryable knowledge graph"
 readme = "README.md"
 license = { text = "MIT" }

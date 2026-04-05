@@ -69,7 +69,7 @@ When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` 
 /graphify path "DigestAuth" "Response"
 /graphify explain "SwinTransformer"
 
-/graphify ./raw --watch            # auto-update graph whenever files change
+/graphify ./raw --watch            # auto-sync graph as files change (code: instant, docs: notifies you)
 /graphify ./raw --wiki             # build agent-crawlable wiki (index.md + article per community)
 /graphify ./raw --svg              # export graph.svg
 /graphify ./raw --graphml          # export graph.graphml (Gephi, yEd)
@@ -96,6 +96,8 @@ Works with any mix of file types:
 
 **Token benchmark** - printed automatically after every run. On a mixed corpus (Karpathy repos + papers + images): **71.5x** fewer tokens per query vs reading raw files.
 
+**Auto-sync** (`--watch`) - run in a background terminal and the graph updates itself as your codebase changes. Code file saves trigger an instant rebuild (AST only, no LLM). Doc/image changes notify you to run `--update` for the LLM re-pass. Useful for agentic workflows where multiple agents are writing code in parallel - the graph stays current between waves automatically.
+
 **Wiki** (`--wiki`) - Wikipedia-style markdown articles per community and god node, with an `index.md` entry point. Point any agent at `index.md` and it can navigate the knowledge base by reading files instead of parsing JSON.
 
 Every edge is tagged `EXTRACTED`, `INFERRED`, or `AMBIGUOUS` - you always know what was found vs guessed.
@@ -108,7 +110,7 @@ Every edge is tagged `EXTRACTED`, `INFERRED`, or `AMBIGUOUS` - you always know w
 | graphify source + Transformer paper | 4 | **5.4x** | [`worked/mixed-corpus/`](worked/mixed-corpus/) |
 | httpx (synthetic Python library) | 6 | ~1x | [`worked/httpx/`](worked/httpx/) |
 
-Token reduction scales with corpus size. 6 files fits in a context window anyway — graph value there is structural clarity, not compression. At 52 files (code + papers + images) you get 71x+. Each `worked/` folder has the raw input files and the actual output (`GRAPH_REPORT.md`, `graph.json`) so you can run it yourself and verify the numbers.
+Token reduction scales with corpus size. 6 files fits in a context window anyway, so graph value there is structural clarity, not compression. At 52 files (code + papers + images) you get 71x+. Each `worked/` folder has the raw input files and the actual output (`GRAPH_REPORT.md`, `graph.json`) so you can run it yourself and verify the numbers.
 
 ## Tech stack
 

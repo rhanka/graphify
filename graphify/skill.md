@@ -23,7 +23,7 @@ Turn any folder of files into a navigable knowledge graph with community detecti
 /graphify <path> --neo4j                              # generate graphify-out/cypher.txt for Neo4j
 /graphify <path> --neo4j-push bolt://localhost:7687   # push directly to Neo4j
 /graphify <path> --mcp                                # start MCP stdio server for agent access
-/graphify <path> --watch                              # watch folder, notify when files change
+/graphify <path> --watch                              # watch folder, auto-rebuild on code changes (no LLM needed)
 /graphify add <url>                                   # fetch URL, save to ./raw, update graph
 /graphify add <url> --author "Name"                   # tag who wrote it
 /graphify add <url> --contributor "Name"              # tag who added it to the corpus
@@ -1100,15 +1100,22 @@ Supported URL types (auto-detected):
 
 ## For --watch
 
-Start a background watcher that monitors a folder and auto-reruns `--update` when files change.
+Start a background watcher that monitors a folder and auto-updates the graph when files change.
 
 ```bash
 python3 -m graphify.watch INPUT_PATH --debounce 3
 ```
 
-Replace INPUT_PATH with the folder to watch. Every time a supported file is added or modified, graphify waits `debounce` seconds (default 3) after the last change, then runs the `--update` pipeline automatically. Press Ctrl+C to stop.
+Replace INPUT_PATH with the folder to watch. Behavior depends on what changed:
 
-For the personal inspo use case: leave this running in a terminal. Drop tweets, screenshots, papers, and notes into the folder throughout the day - the graph updates itself.
+- **Code files only (.py, .ts, .go, etc.):** re-runs AST extraction + rebuild + cluster immediately, no LLM needed. `graph.json` and `GRAPH_REPORT.md` are updated automatically.
+- **Docs, papers, or images:** writes a `graphify-out/needs_update` flag and prints a notification to run `/graphify --update` (LLM semantic re-extraction required).
+
+Debounce (default 3s): waits until file activity stops before triggering, so a wave of parallel agent writes doesn't trigger a rebuild per file.
+
+Press Ctrl+C to stop.
+
+For agentic workflows: run `--watch` in a background terminal. Code changes from agent waves are picked up automatically between waves. If agents are also writing docs or notes, you'll need a manual `/graphify --update` after those waves.
 
 ---
 

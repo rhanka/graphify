@@ -3,26 +3,26 @@ import time
 from pathlib import Path
 import pytest
 
-from graphify.watch import _run_update, _WATCHED_EXTENSIONS
+from graphify.watch import _notify_only, _WATCHED_EXTENSIONS
 
 
-# --- _run_update ---
+# --- _notify_only ---
 
-def test_run_update_creates_flag(tmp_path):
-    _run_update(tmp_path)
+def test_notify_only_creates_flag(tmp_path):
+    _notify_only(tmp_path)
     flag = tmp_path / "graphify-out" / "needs_update"
     assert flag.exists()
     assert flag.read_text() == "1"
 
-def test_run_update_creates_flag_dir(tmp_path):
+def test_notify_only_creates_flag_dir(tmp_path):
     # graphify-out dir does not exist yet
     assert not (tmp_path / "graphify-out").exists()
-    _run_update(tmp_path)
+    _notify_only(tmp_path)
     assert (tmp_path / "graphify-out").is_dir()
 
-def test_run_update_idempotent(tmp_path):
-    _run_update(tmp_path)
-    _run_update(tmp_path)
+def test_notify_only_idempotent(tmp_path):
+    _notify_only(tmp_path)
+    _notify_only(tmp_path)
     flag = tmp_path / "graphify-out" / "needs_update"
     assert flag.read_text() == "1"
 
