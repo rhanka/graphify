@@ -95,11 +95,15 @@ Then act on it:
 
 **Before starting:** note whether `--mode deep` was given. You must pass `DEEP_MODE=true` to every subagent in Step B2 if it was. Track this from the original invocation - do not lose it.
 
-This step has two parts: **structural extraction** (deterministic, free) then **semantic extraction** (Claude, costs tokens).
+This step has two parts: **structural extraction** (deterministic, free) and **semantic extraction** (Claude, costs tokens).
+
+**Run Part A (AST) and Part B (semantic) in parallel. Dispatch all semantic subagents AND start AST extraction in the same message. Both can run simultaneously since they operate on different file types. Merge results in Part C as before.**
+
+Note: Parallelizing AST + semantic saves 5-15s on large corpora. AST is deterministic and fast; start it while subagents are processing docs/papers.
 
 #### Part A - Structural extraction for code files
 
-For any code files detected, run AST extraction first:
+For any code files detected, run AST extraction in parallel with Part B subagents:
 
 ```bash
 python3 -c "
@@ -653,6 +657,7 @@ from pathlib import Path
 result = detect_incremental(Path('INPUT_PATH'))
 new_total = result.get('new_total', 0)
 print(json.dumps(result, indent=2))
+Path('.graphify_incremental.json').write_text(json.dumps(result))
 if new_total == 0:
     print('No files changed since last run. Nothing to update.')
     raise SystemExit(0)
@@ -660,7 +665,27 @@ print(f'{new_total} new/changed file(s) to re-extract.')
 "
 ```
 
-If new files exist, run **Steps 3A–3C** on `result['new_files']` only (not the full corpus). Then:
+If new files exist, first check whether all changed files are code files:
+
+```bash
+python3 -c "
+import json
+from pathlib import Path
+
+result = json.loads(open('.graphify_incremental.json').read()) if Path('.graphify_incremental.json').exists() else {}
+code_exts = {'.py','.ts','.js','.go','.rs','.java','.cpp','.c','.rb','.swift','.kt','.cs','.scala','.php','.cc','.cxx','.hpp','.h','.kts'}
+new_files = result.get('new_files', {})
+all_changed = [f for files in new_files.values() for f in files]
+code_only = all(Path(f).suffix.lower() in code_exts for f in all_changed)
+print('code_only:', code_only)
+"
+```
+
+If `code_only` is True: print `[graphify update] Code-only changes detected - skipping semantic extraction (no LLM needed)`, run only Step 3A (AST) on the changed files, skip Step 3B entirely (no subagents), then go straight to merge and Steps 4–8.
+
+If `code_only` is False (any changed file is a doc/paper/image): run the full Steps 3A–3C pipeline as normal.
+
+Then:
 
 ```bash
 python3 -c "
@@ -1132,6 +1157,22 @@ graphify hook status     # check
 After every `git commit`, the hook detects which code files changed (via `git diff HEAD~1`), re-runs AST extraction on those files, and rebuilds `graph.json` and `GRAPH_REPORT.md`. Doc/image changes are ignored by the hook - run `/graphify --update` manually for those.
 
 If a post-commit hook already exists, graphify appends to it rather than replacing it.
+
+---
+
+## For native CLAUDE.md integration
+
+Run once per project to make graphify always-on in Claude Code sessions:
+
+```bash
+graphify claude install
+```
+
+This writes a `## graphify` section to the local `CLAUDE.md` that instructs Claude to check the graph before answering codebase questions and rebuild it after code changes. No manual `/graphify` needed in future sessions.
+
+```bash
+graphify claude uninstall  # remove the section
+```
 
 ---
 
