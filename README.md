@@ -70,6 +70,8 @@ When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` 
 /graphify explain "SwinTransformer"
 
 /graphify ./raw --watch            # auto-sync graph as files change (code: instant, docs: notifies you)
+
+graphify hook install              # post-commit git hook - rebuilds graph on every commit automatically
 /graphify ./raw --wiki             # build agent-crawlable wiki (index.md + article per community)
 /graphify ./raw --svg              # export graph.svg
 /graphify ./raw --graphml          # export graph.graphml (Gephi, yEd)
@@ -97,6 +99,8 @@ Works with any mix of file types:
 **Token benchmark** - printed automatically after every run. On a mixed corpus (Karpathy repos + papers + images): **71.5x** fewer tokens per query vs reading raw files.
 
 **Auto-sync** (`--watch`) - run in a background terminal and the graph updates itself as your codebase changes. Code file saves trigger an instant rebuild (AST only, no LLM). Doc/image changes notify you to run `--update` for the LLM re-pass. Useful for agentic workflows where multiple agents are writing code in parallel - the graph stays current between waves automatically.
+
+**Git commit hook** (`graphify hook install`) - installs a post-commit hook that rebuilds the graph after every commit. No background process needed. Triggers once per commit, works with any editor, safe to add alongside existing hooks.
 
 **Wiki** (`--wiki`) - Wikipedia-style markdown articles per community and god node, with an `index.md` entry point. Point any agent at `index.md` and it can navigate the knowledge base by reading files instead of parsing JSON.
 

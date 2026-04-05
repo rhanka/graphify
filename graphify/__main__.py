@@ -59,12 +59,27 @@ def main() -> None:
         print("Commands:")
         print("  install                 copy skill to ~/.claude/skills/ and register in CLAUDE.md")
         print("  benchmark [graph.json]  measure token reduction vs naive full-corpus approach")
+        print("  hook install            install post-commit git hook (auto-rebuilds graph on commit)")
+        print("  hook uninstall          remove post-commit git hook")
+        print("  hook status             check if hook is installed")
         print()
         return
 
     cmd = sys.argv[1]
     if cmd == "install":
         install()
+    elif cmd == "hook":
+        from graphify.hooks import install as hook_install, uninstall as hook_uninstall, status as hook_status
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            print(hook_install(Path(".")))
+        elif subcmd == "uninstall":
+            print(hook_uninstall(Path(".")))
+        elif subcmd == "status":
+            print(hook_status(Path(".")))
+        else:
+            print("Usage: graphify hook [install|uninstall|status]", file=sys.stderr)
+            sys.exit(1)
     elif cmd == "benchmark":
         from graphify.benchmark import run_benchmark, print_benchmark
         graph_path = sys.argv[2] if len(sys.argv) > 2 else "graphify-out/graph.json"
