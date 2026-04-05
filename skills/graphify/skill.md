@@ -124,12 +124,15 @@ else:
 
 #### Part B - Semantic extraction (parallel subagents)
 
+**Fast path:** If detection found zero docs, papers, and images (code-only corpus), skip Part B entirely and go straight to Part C. AST handles code - there is nothing for semantic subagents to do.
+
 **MANDATORY: You MUST use the Agent tool here. Reading files yourself one-by-one is forbidden - it is 5-10x slower. If you do not use the Agent tool you are doing this wrong.**
 
-Before dispatching subagents, print a cost estimate:
-- Load `total_words` from `.graphify_detect.json`
-- Estimate: ~(total_words / 750) input tokens per file on average, output ~20% of that
-- Print: "Semantic extraction: ~N files, estimated ~X input tokens"
+Before dispatching subagents, print a timing estimate:
+- Load `total_words` and file counts from `.graphify_detect.json`
+- Estimate agents needed: `ceil(uncached_non_code_files / 22)` (chunk size is 20-25)
+- Estimate time: ~45s per agent batch (they run in parallel, so total ≈ 45s × ceil(agents/parallel_limit))
+- Print: "Semantic extraction: ~N files → X agents, estimated ~Ys"
 
 **Step B0 - Check extraction cache first**
 
@@ -157,7 +160,7 @@ Only dispatch subagents for files listed in `.graphify_uncached.txt`. If all fil
 
 **Step B1 - Split into chunks**
 
-Load files from `.graphify_uncached.txt`. Split into chunks of 12-15 files each. Each image gets its own chunk (vision needs separate context).
+Load files from `.graphify_uncached.txt`. Split into chunks of 20-25 files each. Each image gets its own chunk (vision needs separate context).
 
 **Step B2 - Dispatch ALL subagents in a single message**
 
