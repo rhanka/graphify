@@ -3,6 +3,11 @@ from __future__ import annotations
 import networkx as nx
 
 
+def _node_community_map(communities: dict[int, list[str]]) -> dict[str, int]:
+    """Invert communities dict: node_id -> community_id."""
+    return {n: cid for cid, nodes in communities.items() for n in nodes}
+
+
 def _is_file_node(G: nx.Graph, node_id: str) -> bool:
     """
     Return True if this node is a file-level hub node (e.g. 'client', 'models')
@@ -187,7 +192,7 @@ def _cross_file_surprises(G: nx.Graph, communities: dict[int, list[str]], top_n:
 
     Each result includes a 'why' field explaining what makes it non-obvious.
     """
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
     candidates = []
 
     for u, v, data in G.edges(data=True):
@@ -266,7 +271,7 @@ def _cross_community_surprises(
         return result
 
     # Build node → community map
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
 
     surprises = []
     for u, v, data in G.edges(data=True):
@@ -325,7 +330,7 @@ def suggest_questions(
     Each question has a 'type', 'question', and 'why' field.
     """
     questions = []
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
 
     # 1. AMBIGUOUS edges → unresolved relationship questions
     for u, v, data in G.edges(data=True):

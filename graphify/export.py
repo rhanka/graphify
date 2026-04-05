@@ -17,8 +17,186 @@ COMMUNITY_COLORS = [
 MAX_NODES_FOR_VIZ = 5_000
 
 
+def _node_community_map(communities: dict[int, list[str]]) -> dict[str, int]:
+    """Invert communities dict: node_id -> community_id."""
+    return {n: cid for cid, nodes in communities.items() for n in nodes}
+
+
+def _html_styles() -> str:
+    return """<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph { flex: 1; }
+  #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
+  #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
+  #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+  #search:focus { border-color: #4E79A7; }
+  #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
+  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item:hover { background: #2a2a4e; }
+  #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
+  #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #info-content { font-size: 13px; color: #ccc; line-height: 1.6; }
+  #info-content .field { margin-bottom: 5px; }
+  #info-content .field b { color: #e0e0e0; }
+  #info-content .empty { color: #555; font-style: italic; }
+  .neighbor-link { display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }
+  .neighbor-link:hover { background: #2a2a4e; }
+  #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
+  #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+  #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
+  .legend-item.dimmed { opacity: 0.35; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-count { color: #666; font-size: 11px; }
+  #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+</style>"""
+
+
+def _html_script(nodes_json: str, edges_json: str, legend_json: str) -> str:
+    return f"""<script>
+const RAW_NODES = {nodes_json};
+const RAW_EDGES = {edges_json};
+const LEGEND = {legend_json};
+
+// Build vis datasets
+const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({{
+  id: n.id, label: n.label, color: n.color, size: n.size,
+  font: n.font, title: n.title,
+  _community: n.community, _community_name: n.community_name,
+  _source_file: n.source_file, _file_type: n.file_type, _degree: n.degree,
+}})));
+
+const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({{
+  id: i, from: e.from, to: e.to,
+  label: '',
+  title: e.title,
+  dashes: e.dashes,
+  width: e.width,
+  color: e.color,
+  arrows: {{ to: {{ enabled: true, scaleFactor: 0.5 }} }},
+}})));
+
+const container = document.getElementById('graph');
+const network = new vis.Network(container, {{ nodes: nodesDS, edges: edgesDS }}, {{
+  physics: {{
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {{
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8,
+    }},
+    stabilization: {{ iterations: 200, fit: true }},
+  }},
+  interaction: {{
+    hover: true,
+    tooltipDelay: 100,
+    hideEdgesOnDrag: true,
+    navigationButtons: false,
+    keyboard: false,
+  }},
+  nodes: {{ shape: 'dot', borderWidth: 1.5 }},
+  edges: {{ smooth: {{ type: 'continuous', roundness: 0.2 }}, selectionWidth: 3 }},
+}});
+
+network.once('stabilizationIterationsDone', () => {{
+  network.setOptions({{ physics: {{ enabled: false }} }});
+}});
+
+function showInfo(nodeId) {{
+  const n = nodesDS.get(nodeId);
+  if (!n) return;
+  const neighborIds = network.getConnectedNodes(nodeId);
+  const neighborItems = neighborIds.map(nid => {{
+    const nb = nodesDS.get(nid);
+    const color = nb ? nb.color.background : '#555';
+    return `<span class="neighbor-link" style="border-left-color:${{color}}" onclick="focusNode('${{nid}}')">${{nb ? nb.label : nid}}</span>`;
+  }}).join('');
+  document.getElementById('info-content').innerHTML = `
+    <div class="field"><b>${{n.label}}</b></div>
+    <div class="field">Type: ${{n._file_type || 'unknown'}}</div>
+    <div class="field">Community: ${{n._community_name}}</div>
+    <div class="field">Source: ${{n._source_file || '-'}}</div>
+    <div class="field">Degree: ${{n._degree}}</div>
+    ${{neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${{neighborIds.length}})</div><div id="neighbors-list">${{neighborItems}}</div>` : ''}}
+  `;
+}}
+
+function focusNode(nodeId) {{
+  network.focus(nodeId, {{ scale: 1.4, animation: true }});
+  network.selectNodes([nodeId]);
+  showInfo(nodeId);
+}}
+
+network.on('click', params => {{
+  if (params.nodes.length > 0) showInfo(params.nodes[0]);
+  else document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+}});
+
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {{
+  const q = searchInput.value.toLowerCase().trim();
+  searchResults.innerHTML = '';
+  if (!q) {{ searchResults.style.display = 'none'; return; }}
+  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) {{ searchResults.style.display = 'none'; return; }}
+  searchResults.style.display = 'block';
+  matches.forEach(n => {{
+    const el = document.createElement('div');
+    el.className = 'search-item';
+    el.textContent = n.label;
+    el.style.borderLeft = `3px solid ${{n.color.background}}`;
+    el.style.paddingLeft = '8px';
+    el.onclick = () => {{
+      network.focus(n.id, {{ scale: 1.5, animation: true }});
+      network.selectNodes([n.id]);
+      showInfo(n.id);
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+    }};
+    searchResults.appendChild(el);
+  }});
+}});
+document.addEventListener('click', e => {{
+  if (!searchResults.contains(e.target) && e.target !== searchInput)
+    searchResults.style.display = 'none';
+}});
+
+const hiddenCommunities = new Set();
+const legendEl = document.getElementById('legend');
+LEGEND.forEach(c => {{
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-dot" style="background:${{c.color}}"></div>
+    <span class="legend-label">${{c.label}}</span>
+    <span class="legend-count">${{c.count}}</span>`;
+  item.onclick = () => {{
+    if (hiddenCommunities.has(c.cid)) {{
+      hiddenCommunities.delete(c.cid);
+      item.classList.remove('dimmed');
+    }} else {{
+      hiddenCommunities.add(c.cid);
+      item.classList.add('dimmed');
+    }}
+    const updates = RAW_NODES
+      .filter(n => n.community === c.cid)
+      .map(n => ({{ id: n.id, hidden: hiddenCommunities.has(c.cid) }}));
+    nodesDS.update(updates);
+  }};
+  legendEl.appendChild(item);
+}});
+</script>"""
+
+
 def to_json(G: nx.Graph, communities: dict[int, list[str]], output_path: str) -> None:
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
     data = json_graph.node_link_data(G, edges="links")
     for node in data["nodes"]:
         node["community"] = node_community.get(node["id"])
@@ -62,7 +240,7 @@ def to_html(
             f"Use --no-viz or reduce input size."
         )
 
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
     degree = dict(G.degree())
     max_deg = max(degree.values()) if degree else 1
 
@@ -118,6 +296,7 @@ def to_html(
     edges_json = json.dumps(vis_edges)
     legend_json = json.dumps(legend_data)
     title = sanitize_label(str(output_path))
+    stats = f"{G.number_of_nodes()} nodes &middot; {G.number_of_edges()} edges &middot; {len(communities)} communities"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -125,36 +304,7 @@ def to_html(
 <meta charset="UTF-8">
 <title>graphify - {title}</title>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }}
-  #graph {{ flex: 1; }}
-  #sidebar {{ width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }}
-  #search-wrap {{ padding: 12px; border-bottom: 1px solid #2a2a4e; }}
-  #search {{ width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }}
-  #search:focus {{ border-color: #4E79A7; }}
-  #search-results {{ max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }}
-  .search-item {{ padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-  .search-item:hover {{ background: #2a2a4e; }}
-  #info-panel {{ padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }}
-  #info-panel h3 {{ font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }}
-  #info-content {{ font-size: 13px; color: #ccc; line-height: 1.6; }}
-  #info-content .field {{ margin-bottom: 5px; }}
-  #info-content .field b {{ color: #e0e0e0; }}
-  #info-content .empty {{ color: #555; font-style: italic; }}
-  .neighbor-link {{ display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }}
-  .neighbor-link:hover {{ background: #2a2a4e; }}
-  #neighbors-list {{ max-height: 160px; overflow-y: auto; margin-top: 4px; }}
-  #legend-wrap {{ flex: 1; overflow-y: auto; padding: 12px; }}
-  #legend-wrap h3 {{ font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }}
-  .legend-item {{ display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }}
-  .legend-item:hover {{ background: #2a2a4e; padding-left: 4px; }}
-  .legend-item.dimmed {{ opacity: 0.35; }}
-  .legend-dot {{ width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }}
-  .legend-label {{ flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-  .legend-count {{ color: #666; font-size: 11px; }}
-  #stats {{ padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }}
-</style>
+{_html_styles()}
 </head>
 <body>
 <div id="graph"></div>
@@ -171,160 +321,9 @@ def to_html(
     <h3>Communities</h3>
     <div id="legend"></div>
   </div>
-  <div id="stats">
-    {G.number_of_nodes()} nodes &middot; {G.number_of_edges()} edges &middot; {len(communities)} communities
-  </div>
+  <div id="stats">{stats}</div>
 </div>
-
-<script>
-const RAW_NODES = {nodes_json};
-const RAW_EDGES = {edges_json};
-const LEGEND = {legend_json};
-
-// Build vis datasets
-const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({{
-  id: n.id, label: n.label, color: n.color, size: n.size,
-  font: n.font, title: n.title,
-  // store metadata for info panel
-  _community: n.community, _community_name: n.community_name,
-  _source_file: n.source_file, _file_type: n.file_type, _degree: n.degree,
-}})));
-
-const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({{
-  id: i, from: e.from, to: e.to,
-  label: '', // hide edge labels by default - too noisy
-  title: e.title,
-  dashes: e.dashes,
-  width: e.width,
-  color: e.color,
-  arrows: {{ to: {{ enabled: true, scaleFactor: 0.5 }} }},
-}})));
-
-const container = document.getElementById('graph');
-const network = new vis.Network(container, {{ nodes: nodesDS, edges: edgesDS }}, {{
-  physics: {{
-    enabled: true,
-    solver: 'forceAtlas2Based',
-    forceAtlas2Based: {{
-      gravitationalConstant: -60,
-      centralGravity: 0.005,
-      springLength: 120,
-      springConstant: 0.08,
-      damping: 0.4,
-      avoidOverlap: 0.8,
-    }},
-    stabilization: {{ iterations: 200, fit: true }},
-  }},
-  interaction: {{
-    hover: true,
-    tooltipDelay: 100,
-    hideEdgesOnDrag: true,
-    navigationButtons: false,
-    keyboard: false,
-  }},
-  nodes: {{
-    shape: 'dot',
-    borderWidth: 1.5,
-  }},
-  edges: {{
-    smooth: {{ type: 'continuous', roundness: 0.2 }},
-    selectionWidth: 3,
-  }},
-}});
-
-// After stabilization, disable physics so graph is stable
-network.once('stabilizationIterationsDone', () => {{
-  network.setOptions({{ physics: {{ enabled: false }} }});
-}});
-
-// --- INFO PANEL ---
-function showInfo(nodeId) {{
-  const n = nodesDS.get(nodeId);
-  if (!n) return;
-  const neighborIds = network.getConnectedNodes(nodeId);
-  const neighborItems = neighborIds.map(nid => {{
-    const nb = nodesDS.get(nid);
-    const color = nb ? nb.color.background : '#555';
-    return `<span class="neighbor-link" style="border-left-color:${{color}}" onclick="focusNode('${{nid}}')">${{nb ? nb.label : nid}}</span>`;
-  }}).join('');
-  document.getElementById('info-content').innerHTML = `
-    <div class="field"><b>${{n.label}}</b></div>
-    <div class="field">Type: ${{n._file_type || 'unknown'}}</div>
-    <div class="field">Community: ${{n._community_name}}</div>
-    <div class="field">Source: ${{n._source_file || '-'}}</div>
-    <div class="field">Degree: ${{n._degree}}</div>
-    ${{neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${{neighborIds.length}})</div><div id="neighbors-list">${{neighborItems}}</div>` : ''}}
-  `;
-}}
-
-function focusNode(nodeId) {{
-  network.focus(nodeId, {{ scale: 1.4, animation: true }});
-  network.selectNodes([nodeId]);
-  showInfo(nodeId);
-}}
-
-network.on('click', params => {{
-  if (params.nodes.length > 0) showInfo(params.nodes[0]);
-  else document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
-}});
-
-// --- SEARCH ---
-const searchInput = document.getElementById('search');
-const searchResults = document.getElementById('search-results');
-searchInput.addEventListener('input', () => {{
-  const q = searchInput.value.toLowerCase().trim();
-  searchResults.innerHTML = '';
-  if (!q) {{ searchResults.style.display = 'none'; return; }}
-  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
-  if (!matches.length) {{ searchResults.style.display = 'none'; return; }}
-  searchResults.style.display = 'block';
-  matches.forEach(n => {{
-    const el = document.createElement('div');
-    el.className = 'search-item';
-    el.textContent = n.label;
-    el.style.borderLeft = `3px solid ${{n.color.background}}`;
-    el.style.paddingLeft = '8px';
-    el.onclick = () => {{
-      network.focus(n.id, {{ scale: 1.5, animation: true }});
-      network.selectNodes([n.id]);
-      showInfo(n.id);
-      searchResults.style.display = 'none';
-      searchInput.value = '';
-    }};
-    searchResults.appendChild(el);
-  }});
-}});
-document.addEventListener('click', e => {{
-  if (!searchResults.contains(e.target) && e.target !== searchInput)
-    searchResults.style.display = 'none';
-}});
-
-// --- LEGEND / COMMUNITY FILTER ---
-const hiddenCommunities = new Set();
-const legendEl = document.getElementById('legend');
-LEGEND.forEach(c => {{
-  const item = document.createElement('div');
-  item.className = 'legend-item';
-  item.innerHTML = `<div class="legend-dot" style="background:${{c.color}}"></div>
-    <span class="legend-label">${{c.label}}</span>
-    <span class="legend-count">${{c.count}}</span>`;
-  item.onclick = () => {{
-    if (hiddenCommunities.has(c.cid)) {{
-      hiddenCommunities.delete(c.cid);
-      item.classList.remove('dimmed');
-    }} else {{
-      hiddenCommunities.add(c.cid);
-      item.classList.add('dimmed');
-    }}
-    // Show/hide nodes by community
-    const updates = RAW_NODES
-      .filter(n => n.community === c.cid)
-      .map(n => ({{ id: n.id, hidden: hiddenCommunities.has(c.cid) }}));
-    nodesDS.update(updates);
-  }};
-  legendEl.appendChild(item);
-}});
-</script>
+{_html_script(nodes_json, edges_json, legend_json)}
 </body>
 </html>"""
 
@@ -353,7 +352,7 @@ def to_obsidian(
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
 
     # Map node_id → safe filename so wikilinks stay consistent.
     # Deduplicate: if two nodes produce the same filename, append a numeric suffix.
@@ -755,10 +754,7 @@ def push_to_neo4j(
             "neo4j driver not installed. Run: pip install neo4j"
         ) from e
 
-    node_community = (
-        {n: cid for cid, nodes in communities.items() for n in nodes}
-        if communities else {}
-    )
+    node_community = _node_community_map(communities) if communities else {}
 
     def _safe_rel(relation: str) -> str:
         return re.sub(r"[^A-Z0-9_]", "_", relation.upper().replace(" ", "_").replace("-", "_")) or "RELATED_TO"
@@ -809,7 +805,7 @@ def to_graphml(
     Edge confidence (EXTRACTED/INFERRED/AMBIGUOUS) is preserved as an edge attribute.
     """
     H = G.copy()
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
     for node_id in H.nodes():
         H.nodes[node_id]["community"] = node_community.get(node_id, -1)
     nx.write_graphml(H, output_path)
@@ -837,7 +833,7 @@ def to_svg(
     except ImportError as e:
         raise ImportError("matplotlib not installed. Run: pip install matplotlib") from e
 
-    node_community = {n: cid for cid, nodes in communities.items() for n in nodes}
+    node_community = _node_community_map(communities)
 
     fig, ax = plt.subplots(figsize=figsize, facecolor="#1a1a2e")
     ax.set_facecolor("#1a1a2e")
