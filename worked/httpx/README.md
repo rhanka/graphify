@@ -33,10 +33,12 @@ graphify ./raw
 
 ## What to expect
 
-- ~95 nodes, ~130 edges
-- 4 communities: Exception Hierarchy, Models & Data, Auth & Transport, Client Layer
-- God nodes: `client.py`, `models.py`, `transport.py`, `exceptions.py`, `BaseClient`, `Response`
+- 144 nodes, 330 edges, 6 communities
+- God nodes: `Client`, `AsyncClient`, `Response`, `Request`, `BaseClient`, `HTTPTransport`
 - Surprising connections: `DigestAuth` ↔ `Response` (auth.py reads Response to parse WWW-Authenticate)
-- All edges EXTRACTED — no inference needed, dependency graph is explicit
+- **~1x token reduction** — 6 files fits in a context window, so there's no compression win here
 
-Full eval with scores and analysis: `review.md`
+The graph value on a small corpus is structural, not compressive: you can see the full dependency graph, identify god nodes, and understand architecture at a glance. For token reduction to matter you need 20+ files. At 52 files (Karpathy repos benchmark) graphify achieves 71.5x.
+
+Run `graphify benchmark worked/httpx/graph.json` to verify the numbers yourself.
+Actual output is already in this folder: `GRAPH_REPORT.md` (human-readable) and `graph.json` (full graph data).
