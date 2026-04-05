@@ -102,13 +102,13 @@ Every edge is tagged `EXTRACTED`, `INFERRED`, or `AMBIGUOUS` - you always know w
 
 ## Worked examples
 
-| Corpus | Type | Reduction | Eval |
-|--------|------|-----------|------|
-| Karpathy repos + 5 papers + 4 images | Mixed | **71.5x** | [`worked/karpathy-repos/review.md`](worked/karpathy-repos/review.md) |
-| httpx (Python HTTP client) | Code | small corpus¹ | [`worked/httpx/review.md`](worked/httpx/review.md) |
-| Code + paper + Arabic image | Multi-type | small corpus¹ | [`worked/mixed-corpus/review.md`](worked/mixed-corpus/review.md) |
+| Corpus | Files | Reduction | Output |
+|--------|-------|-----------|--------|
+| Karpathy repos + 5 papers + 4 images | 52 | **71.5x** | [`worked/karpathy-repos/`](worked/karpathy-repos/) |
+| graphify source + Transformer paper | 4 | **5.4x** | [`worked/mixed-corpus/`](worked/mixed-corpus/) |
+| httpx (synthetic Python library) | 6 | ~1x | [`worked/httpx/`](worked/httpx/) |
 
-¹ Small corpora fit in one context window - graph value is structural clarity, not compression.
+Token reduction scales with corpus size. 6 files fits in a context window anyway — graph value there is structural clarity, not compression. At 52 files (code + papers + images) you get 71x+. Each `worked/` folder has the raw input files and the actual output (`GRAPH_REPORT.md`, `graph.json`) so you can run it yourself and verify the numbers.
 
 ## Tech stack
 
