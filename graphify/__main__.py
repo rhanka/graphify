@@ -1,6 +1,7 @@
 """graphify CLI - `graphify install` sets up the Claude Code skill."""
 from __future__ import annotations
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -52,6 +53,70 @@ def install() -> None:
     print()
 
 
+_CLAUDE_MD_SECTION = """\
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+"""
+
+_CLAUDE_MD_MARKER = "## graphify"
+
+
+def claude_install(project_dir: Path | None = None) -> None:
+    """Write the graphify section to the local CLAUDE.md."""
+    target = (project_dir or Path(".")) / "CLAUDE.md"
+
+    if target.exists():
+        content = target.read_text()
+        if _CLAUDE_MD_MARKER in content:
+            print("graphify already configured in CLAUDE.md")
+            return
+        new_content = content.rstrip() + "\n\n" + _CLAUDE_MD_SECTION
+    else:
+        new_content = _CLAUDE_MD_SECTION
+
+    target.write_text(new_content)
+    print(f"graphify section written to {target.resolve()}")
+    print()
+    print("Claude Code will now check the knowledge graph before answering")
+    print("codebase questions and rebuild it after code changes.")
+
+
+def claude_uninstall(project_dir: Path | None = None) -> None:
+    """Remove the graphify section from the local CLAUDE.md."""
+    target = (project_dir or Path(".")) / "CLAUDE.md"
+
+    if not target.exists():
+        print("No CLAUDE.md found in current directory - nothing to do")
+        return
+
+    content = target.read_text()
+    if _CLAUDE_MD_MARKER not in content:
+        print("graphify section not found in CLAUDE.md - nothing to do")
+        return
+
+    # Remove the ## graphify section: from the marker to the next ## heading or EOF
+    cleaned = re.sub(
+        r"\n*## graphify\n.*?(?=\n## |\Z)",
+        "",
+        content,
+        flags=re.DOTALL,
+    ).rstrip()
+    if cleaned:
+        target.write_text(cleaned + "\n")
+    else:
+        target.unlink()
+        print(f"CLAUDE.md was empty after removal - deleted {target.resolve()}")
+        return
+
+    print(f"graphify section removed from {target.resolve()}")
+
+
 def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("Usage: graphify <command>")
@@ -62,12 +127,23 @@ def main() -> None:
         print("  hook install            install post-commit git hook (auto-rebuilds graph on commit)")
         print("  hook uninstall          remove post-commit git hook")
         print("  hook status             check if hook is installed")
+        print("  claude install          write graphify section to local CLAUDE.md")
+        print("  claude uninstall        remove graphify section from local CLAUDE.md")
         print()
         return
 
     cmd = sys.argv[1]
     if cmd == "install":
         install()
+    elif cmd == "claude":
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            claude_install()
+        elif subcmd == "uninstall":
+            claude_uninstall()
+        else:
+            print("Usage: graphify claude [install|uninstall]", file=sys.stderr)
+            sys.exit(1)
     elif cmd == "hook":
         from graphify.hooks import install as hook_install, uninstall as hook_uninstall, status as hook_status
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
