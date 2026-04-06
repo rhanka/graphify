@@ -1,6 +1,6 @@
 # Reproducible Example
 
-A small document pipeline (parser, validator, processor, storage, API) with architecture notes and research notes. Six files, two languages, clear call relationships between modules.
+A small document pipeline — parser, validator, processor, storage, API — with architecture notes and research notes. Seven files, two languages, clear call relationships between modules.
 
 Run graphify on it and you get a knowledge graph showing how the modules connect, which functions call which, and how the architecture notes relate to the code.
 
@@ -8,50 +8,49 @@ Run graphify on it and you get a knowledge graph showing how the modules connect
 
 ```
 raw/
-├── parser.py        reads files, detects format, kicks off the pipeline
-├── validator.py     schema checks, calls processor for text normalization
-├── processor.py     keyword extraction, cross-reference detection
-├── storage.py       persists everything, maintains the index
-├── api.py           HTTP handlers that orchestrate the above four modules
-├── architecture.md  design decisions and module responsibilities
-└── notes.md         open questions and tradeoffs, written informally
+├── parser.py        — reads files, detects format, kicks off the pipeline
+├── validator.py     — schema checks, calls processor for text normalization
+├── processor.py     — keyword extraction, cross-reference detection
+├── storage.py       — persists everything, maintains the index
+├── api.py           — HTTP handlers that orchestrate the above four modules
+├── architecture.md  — design decisions and module responsibilities
+└── notes.md         — open questions and tradeoffs
 ```
 
-## How to run it
+## How to run
 
 ```bash
-pip install graphifyy && graphify install
+pip install graphifyy
+
+graphify install                        # Claude Code
+graphify install --platform codex       # Codex
+graphify install --platform opencode    # OpenCode
+graphify install --platform claw        # OpenClaw
 ```
 
-Then open Claude Code in this directory and type:
+Then open your AI coding assistant in this directory and type:
 
 ```
 /graphify ./raw
 ```
 
-Takes under a minute. No PDF or image extraction, so it runs entirely on AST and markdown parsing with no token cost for semantic extraction.
+No PDF or image extraction — runs entirely on AST and markdown with no token cost for semantic extraction.
 
 ## What to expect
 
-The graph should show:
-
-- api.py as a hub node connected to all four modules
-- parser.py calling validator.py and storage.py
-- validator.py calling processor.py for normalize_text
-- processor.py calling storage.py for load_index and save_processed
-- architecture.md and notes.md linked to the code modules they discuss
-
-The community detection will likely cluster the four Python modules together and the two markdown files together, or split api.py into its own cluster given its high connectivity.
-
-God nodes will be storage.py (everything reads and writes through it) and api.py (connects to everything at the top level).
+- `api.py` as a hub node connected to all four modules
+- `storage.py` as the highest-degree god node (everything reads and writes through it)
+- `parser.py` calling `validator.py` and `storage.py`
+- `architecture.md` and `notes.md` linked to the code modules they discuss
+- 2 communities: the four Python modules together, the two markdown files together (or api.py in its own cluster given high connectivity)
 
 ## After it runs
 
-Ask questions in Claude Code and it answers from the graph:
+Ask questions from your AI coding assistant:
 
 - "what calls storage directly?"
 - "what is the shortest path between parser and processor?"
 - "which module has the most connections?"
 - "what does the architecture doc say about the storage design?"
 
-The graph lives in graphify-out/ and persists across sessions.
+The graph lives in `graphify-out/` and persists across sessions.

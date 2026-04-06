@@ -1,6 +1,6 @@
-# Karpathy Repos Benchmark — How to Reproduce
+# Karpathy Repos Benchmark
 
-This is the corpus that produced the 71.5x token reduction benchmark.
+This is the corpus that produced the **71.5x token reduction** benchmark.
 
 ## Corpus (52 files)
 
@@ -33,9 +33,9 @@ Put all files into a single folder called `raw/`:
 
 ```
 raw/
-├── nanoGPT/         (cloned repo)
-├── minGPT/          (cloned repo)
-├── micrograd/       (cloned repo)
+├── nanoGPT/
+├── minGPT/
+├── micrograd/
 ├── attention.pdf
 ├── flashattention.pdf
 ├── flashattention2.pdf
@@ -46,10 +46,20 @@ raw/
 └── moon_mlp.png
 ```
 
-Then in Claude Code:
+Install and set up the skill for your platform:
+
+```bash
+pip install graphifyy
+
+graphify install                        # Claude Code
+graphify install --platform codex       # Codex
+graphify install --platform opencode    # OpenCode
+graphify install --platform claw        # OpenClaw
+```
+
+Then open your AI coding assistant in this directory and type:
 
 ```
-pip install graphifyy && graphify install
 /graphify ./raw
 ```
 
@@ -58,6 +68,6 @@ pip install graphifyy && graphify install
 - ~285 nodes, ~340 edges, ~17 meaningful communities
 - God nodes: `Value` (micrograd), `GPT` (nanoGPT), `Training Script`, `Layer`
 - Surprising connections: nanoGPT Block and minGPT Block linked across repos, FlashAttention paper bridging into CausalSelfAttention in both repos
-- Token reduction: 71.5x vs reading all 52 files cold
+- Token reduction: 71.5x vs reading all 52 files directly
 
-Full eval with scores and analysis: `review.md`
+Actual output is in this folder: `GRAPH_REPORT.md` and `graph.json`. Full eval with scores: `review.md`.
