@@ -7,6 +7,22 @@ import shutil
 import sys
 from pathlib import Path
 
+try:
+    from importlib.metadata import version as _pkg_version
+    __version__ = _pkg_version("graphifyy")
+except Exception:
+    __version__ = "unknown"
+
+
+def _check_skill_version(skill_dst: Path) -> None:
+    """Warn if the installed skill is from an older graphify version."""
+    version_file = skill_dst.parent / ".graphify_version"
+    if not version_file.exists():
+        return
+    installed = version_file.read_text(encoding="utf-8").strip()
+    if installed != __version__:
+        print(f"  warning: skill is from graphify {installed}, package is {__version__}. Run 'graphify install' to update.")
+
 _SETTINGS_HOOK = {
     "matcher": "Glob|Grep",
     "hooks": [
@@ -81,7 +97,8 @@ def install(platform: str = "claude") -> None:
     skill_dst = Path.home() / cfg["skill_dst"]
     skill_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(skill_src, skill_dst)
-    print(f"  skill installed  →  {skill_dst}")
+    (skill_dst.parent / ".graphify_version").write_text(__version__, encoding="utf-8")
+    print(f"  skill installed  ->  {skill_dst}")
 
     if cfg["claude_md"]:
         # Register in ~/.claude/CLAUDE.md (Claude Code only)
@@ -89,14 +106,14 @@ def install(platform: str = "claude") -> None:
         if claude_md.exists():
             content = claude_md.read_text(encoding="utf-8")
             if "graphify" in content:
-                print(f"  CLAUDE.md        →  already registered (no change)")
+                print(f"  CLAUDE.md        ->  already registered (no change)")
             else:
                 claude_md.write_text(content.rstrip() + _SKILL_REGISTRATION, encoding="utf-8")
-                print(f"  CLAUDE.md        →  skill registered in {claude_md}")
+                print(f"  CLAUDE.md        ->  skill registered in {claude_md}")
         else:
             claude_md.parent.mkdir(parents=True, exist_ok=True)
             claude_md.write_text(_SKILL_REGISTRATION.lstrip(), encoding="utf-8")
-            print(f"  CLAUDE.md        →  created at {claude_md}")
+            print(f"  CLAUDE.md        ->  created at {claude_md}")
 
     print()
     print("Done. Open your AI coding assistant and type:")
@@ -226,12 +243,12 @@ def _install_claude_hook(project_dir: Path) -> None:
 
     # Check if already installed
     if any(h.get("matcher") == "Glob|Grep" and "graphify" in str(h) for h in pre_tool):
-        print(f"  .claude/settings.json  →  hook already registered (no change)")
+        print(f"  .claude/settings.json  ->  hook already registered (no change)")
         return
 
     pre_tool.append(_SETTINGS_HOOK)
     settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
-    print(f"  .claude/settings.json  →  PreToolUse hook registered")
+    print(f"  .claude/settings.json  ->  PreToolUse hook registered")
 
 
 def _uninstall_claude_hook(project_dir: Path) -> None:
@@ -249,7 +266,7 @@ def _uninstall_claude_hook(project_dir: Path) -> None:
         return
     settings["hooks"]["PreToolUse"] = filtered
     settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
-    print(f"  .claude/settings.json  →  PreToolUse hook removed")
+    print(f"  .claude/settings.json  ->  PreToolUse hook removed")
 
 
 def claude_uninstall(project_dir: Path | None = None) -> None:
@@ -283,6 +300,11 @@ def claude_uninstall(project_dir: Path | None = None) -> None:
 
 
 def main() -> None:
+    # Check all known skill install locations for a stale version stamp
+    for cfg in _PLATFORM_CONFIG.values():
+        skill_dst = Path.home() / cfg["skill_dst"]
+        _check_skill_version(skill_dst)
+
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("Usage: graphify <command>")
         print()
