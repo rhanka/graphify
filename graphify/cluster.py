@@ -16,7 +16,9 @@ def _partition(G: nx.Graph) -> dict[str, int]:
         pass
 
     # Fallback: networkx louvain (available since networkx 2.7)
-    communities = nx.community.louvain_communities(G, seed=42)
+    # max_level=10 and threshold=1e-4 prevent indefinite hangs on large sparse graphs
+    # while producing equivalent community quality to the defaults on typical corpora
+    communities = nx.community.louvain_communities(G, seed=42, max_level=10, threshold=1e-4)
     return {node: cid for cid, nodes in enumerate(communities) for node in nodes}
 
 
