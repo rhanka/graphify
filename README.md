@@ -210,6 +210,10 @@ graphify sends file contents to your AI coding assistant's underlying model API 
 
 NetworkX + Leiden (graspologic) + tree-sitter + vis.js. Semantic extraction via Claude (Claude Code), GPT-4 (Codex), or whichever model your platform runs. No Neo4j required, no server, runs entirely locally.
 
+## Star history
+
+[![Star History Chart](https://api.star-history.com/svg?repos=safishamsi/graphify&type=Date)](https://star-history.com/#safishamsi/graphify&Date)
+
 <details>
 <summary>Contributing</summary>
 
