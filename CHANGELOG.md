@@ -2,6 +2,11 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.3.10 (2026-04-07)
+
+- Fix: Windows UnicodeEncodeError during `graphify install` — replaced arrow character with `->` in all print statements (#47)
+- Add: skill version staleness check — warns when installed skill is older than the current package, across all platforms (#46)
+
 ## 0.3.9 (2026-04-07)
 
 - Add: `follow_symlinks` parameter to `detect()` and `collect_files()` — opt-in symlink following with circular symlink cycle detection (#33)
