@@ -288,6 +288,10 @@ def main() -> None:
         print()
         print("Commands:")
         print("  install [--platform P]  copy skill to platform config dir (claude|windows|codex|opencode|claw|droid)")
+        print("  query \"<question>\"       BFS traversal of graph.json for a question")
+        print("    --dfs                   use depth-first instead of breadth-first")
+        print("    --budget N              cap output at N tokens (default 2000)")
+        print("    --graph <path>          path to graph.json (default graphify-out/graph.json)")
         print("  benchmark [graph.json]  measure token reduction vs naive full-corpus approach")
         print("  hook install            install post-commit/post-checkout git hooks (all platforms)")
         print("  hook uninstall          remove git hooks")
@@ -352,6 +356,35 @@ def main() -> None:
         else:
             print("Usage: graphify hook [install|uninstall|status]", file=sys.stderr)
             sys.exit(1)
+    elif cmd == "query":
+        if len(sys.argv) < 3:
+            print("Usage: graphify query \"<question>\" [--dfs] [--budget N] [--graph path]", file=sys.stderr)
+            sys.exit(1)
+        from graphify.serve import _load_graph, _score_nodes, _bfs, _dfs, _subgraph_to_text
+        question = sys.argv[2]
+        use_dfs = "--dfs" in sys.argv
+        budget = 2000
+        graph_path = "graphify-out/graph.json"
+        args = sys.argv[3:]
+        i = 0
+        while i < len(args):
+            if args[i] == "--budget" and i + 1 < len(args):
+                budget = int(args[i + 1]); i += 2
+            elif args[i].startswith("--budget="):
+                budget = int(args[i].split("=", 1)[1]); i += 1
+            elif args[i] == "--graph" and i + 1 < len(args):
+                graph_path = args[i + 1]; i += 2
+            else:
+                i += 1
+        G = _load_graph(graph_path)
+        terms = [t.lower() for t in question.split() if len(t) > 2]
+        scored = _score_nodes(G, terms)
+        if not scored:
+            print("No matching nodes found.")
+            sys.exit(0)
+        start = [nid for _, nid in scored[:5]]
+        nodes, edges = (_dfs if use_dfs else _bfs)(G, start, depth=2)
+        print(_subgraph_to_text(G, nodes, edges, token_budget=budget))
     elif cmd == "benchmark":
         from graphify.benchmark import run_benchmark, print_benchmark
         graph_path = sys.argv[2] if len(sys.argv) > 2 else "graphify-out/graph.json"

@@ -24,6 +24,7 @@ Turn any folder of files into a navigable knowledge graph with community detecti
 /graphify <path> --neo4j-push bolt://localhost:7687   # push directly to Neo4j
 /graphify <path> --mcp                                # start MCP stdio server for agent access
 /graphify <path> --watch                              # watch folder, auto-rebuild on code changes (no LLM needed)
+/graphify <path> --obsidian --obsidian-dir ~/vaults/my-project  # write vault to custom path (e.g. existing vault)
 /graphify add <url>                                   # fetch URL, save to ./raw, update graph
 /graphify add <url> --author "Name"                   # tag who wrote it
 /graphify add <url> --contributor "Name"              # tag who added it to the corpus
@@ -428,6 +429,8 @@ Replace INPUT_PATH with the actual path.
 
 If `--obsidian` was given:
 
+- If `--obsidian-dir <path>` was also given, use that path as the vault directory. Otherwise default to `graphify-out/obsidian`.
+
 ```bash
 $(cat .graphify_python) -c "
 import sys, json
@@ -444,13 +447,15 @@ communities = {int(k): v for k, v in analysis['communities'].items()}
 cohesion = {int(k): v for k, v in analysis['cohesion'].items()}
 labels = {int(k): v for k, v in labels_raw.items()}
 
-n = to_obsidian(G, communities, 'graphify-out/obsidian', community_labels=labels or None, cohesion=cohesion)
-print(f'Obsidian vault: {n} notes in graphify-out/obsidian/')
+obsidian_dir = 'OBSIDIAN_DIR'  # replace with --obsidian-dir value, or 'graphify-out/obsidian' if not given
 
-to_canvas(G, communities, 'graphify-out/obsidian/graph.canvas', community_labels=labels or None)
-print('Canvas: graphify-out/obsidian/graph.canvas - open in Obsidian for structured community layout')
+n = to_obsidian(G, communities, obsidian_dir, community_labels=labels or None, cohesion=cohesion)
+print(f'Obsidian vault: {n} notes in {obsidian_dir}/')
+
+to_canvas(G, communities, f'{obsidian_dir}/graph.canvas', community_labels=labels or None)
+print(f'Canvas: {obsidian_dir}/graph.canvas - open in Obsidian for structured community layout')
 print()
-print('Open graphify-out/obsidian/ as a vault in Obsidian.')
+print(f'Open {obsidian_dir}/ as a vault in Obsidian.')
 print('  Graph view   - nodes colored by community (set automatically)')
 print('  graph.canvas - structured layout with communities as groups')
 print('  _COMMUNITY_* - overview notes with cohesion scores and dataview queries')

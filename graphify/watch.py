@@ -18,7 +18,7 @@ _CODE_EXTENSIONS = {
 }
 
 
-def _rebuild_code(watch_path: Path) -> bool:
+def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
     """Re-run AST extraction + build + cluster + report for code files. No LLM needed.
 
     Returns True on success, False on error.
@@ -31,13 +31,10 @@ def _rebuild_code(watch_path: Path) -> bool:
         from graphify.report import generate
         from graphify.export import to_json
 
-        code_files = []
-        for ext in _CODE_EXTENSIONS:
-            code_files.extend(watch_path.rglob(f"*{ext}"))
+        code_files = collect_files(watch_path, follow_symlinks=follow_symlinks)
         code_files = [
             f for f in code_files
-            if not any(part.startswith(".") for part in f.parts)
-            and "graphify-out" not in f.parts
+            if "graphify-out" not in f.parts
             and "__pycache__" not in f.parts
         ]
 
