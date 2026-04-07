@@ -337,3 +337,37 @@ def test_swift_emits_calls():
     r = extract_swift(FIXTURES / "sample.swift")
     calls = _calls(r)
     assert any("process" in src and "validate" in tgt for src, tgt in calls)
+
+
+# ── Elixir ────────────────────────────────────────────────────────────────────
+
+from graphify.extract import extract_elixir
+
+def test_elixir_finds_module():
+    r = extract_elixir(FIXTURES / "sample.ex")
+    assert "error" not in r
+    labels = [n["label"] for n in r["nodes"]]
+    assert any("MyApp.Accounts.User" in l for l in labels)
+
+def test_elixir_finds_functions():
+    r = extract_elixir(FIXTURES / "sample.ex")
+    labels = [n["label"] for n in r["nodes"]]
+    assert any("create" in l for l in labels)
+    assert any("find" in l for l in labels)
+    assert any("validate" in l for l in labels)
+
+def test_elixir_finds_imports():
+    r = extract_elixir(FIXTURES / "sample.ex")
+    import_edges = [e for e in r["edges"] if e["relation"] == "imports"]
+    assert len(import_edges) >= 2
+
+def test_elixir_finds_calls():
+    r = extract_elixir(FIXTURES / "sample.ex")
+    calls = {(e["source"], e["target"]) for e in r["edges"] if e["relation"] == "calls"}
+    labels = {n["id"]: n["label"] for n in r["nodes"]}
+    assert any("create" in labels.get(src, "") and "validate" in labels.get(tgt, "") for src, tgt in calls)
+
+def test_elixir_method_edges():
+    r = extract_elixir(FIXTURES / "sample.ex")
+    methods = [e for e in r["edges"] if e["relation"] == "method"]
+    assert len(methods) >= 3

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphifyy"
-version = "0.3.5"
+version = "0.3.6"
 description = "AI coding assistant skill (Claude Code, Codex, OpenCode, OpenClaw) - turn any folder of code, docs, papers, or images into a queryable knowledge graph"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -30,6 +30,7 @@ dependencies = [
     "tree-sitter-lua",
     "tree-sitter-zig",
     "tree-sitter-powershell",
+    "tree-sitter-elixir",
 ]
 
 [project.urls]
