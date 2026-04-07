@@ -61,7 +61,8 @@ def test_collect_files_from_dir():
     supported = {".py", ".js", ".ts", ".tsx", ".go", ".rs",
                  ".java", ".c", ".cpp", ".cc", ".cxx", ".rb",
                  ".cs", ".kt", ".kts", ".scala", ".php", ".h", ".hpp",
-                 ".swift", ".lua", ".toc", ".zig", ".ps1", ".ex", ".exs"}
+                 ".swift", ".lua", ".toc", ".zig", ".ps1", ".ex", ".exs",
+                 ".m", ".mm"}
     assert all(f.suffix in supported for f in files)
     assert len(files) > 0
 
@@ -70,6 +71,29 @@ def test_collect_files_skips_hidden():
     files = collect_files(FIXTURES)
     for f in files:
         assert not any(part.startswith(".") for part in f.parts)
+
+
+def test_collect_files_follows_symlinked_directory(tmp_path):
+    real_dir = tmp_path / "real_src"
+    real_dir.mkdir()
+    (real_dir / "lib.py").write_text("x = 1")
+    (tmp_path / "linked_src").symlink_to(real_dir)
+
+    files_no = collect_files(tmp_path, follow_symlinks=False)
+    files_yes = collect_files(tmp_path, follow_symlinks=True)
+
+    assert [f.name for f in files_no].count("lib.py") == 1
+    assert [f.name for f in files_yes].count("lib.py") == 2
+
+
+def test_collect_files_handles_circular_symlinks(tmp_path):
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / "mod.py").write_text("x = 1")
+    (sub / "cycle").symlink_to(tmp_path)
+
+    files = collect_files(tmp_path, follow_symlinks=True)
+    assert any(f.name == "mod.py" for f in files)
 
 
 def test_no_dangling_edges_on_extract():

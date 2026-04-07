@@ -73,6 +73,8 @@ Then open your AI coding assistant and type:
 /graphify .
 ```
 
+Note: Codex uses `$` instead of `/` for skill calling, so type `$graphify .` instead.
+
 ### Make your assistant always use the graph (recommended)
 
 After building a graph, run this once in your project:
@@ -126,7 +128,8 @@ When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` 
 /graphify ./raw --update           # re-extract only changed files, merge into existing graph
 /graphify ./raw --cluster-only     # rerun clustering on existing graph, no re-extraction
 /graphify ./raw --no-viz           # skip HTML, just produce report + JSON
-/graphify ./raw --obsidian         # also generate Obsidian vault (opt-in)
+/graphify ./raw --obsidian                          # also generate Obsidian vault (opt-in)
+/graphify ./raw --obsidian --obsidian-dir ~/vaults/myproject  # write vault to a specific directory
 
 /graphify add https://arxiv.org/abs/1706.03762        # fetch a paper, save, update graph
 /graphify add https://x.com/karpathy/status/...       # fetch a tweet
@@ -165,7 +168,7 @@ Works with any mix of file types:
 
 | Type | Extensions | Extraction |
 |------|-----------|------------|
-| Code | `.py .ts .js .go .rs .java .c .cpp .rb .cs .kt .scala .php .swift .lua .zig .ps1` | AST via tree-sitter + call-graph + docstring/comment rationale |
+| Code | `.py .ts .js .go .rs .java .c .cpp .rb .cs .kt .scala .php .swift .lua .zig .ps1 .ex .exs .m .mm` | AST via tree-sitter + call-graph + docstring/comment rationale |
 | Docs | `.md .txt .rst` | Concepts + relationships + design rationale via Claude |
 | Office | `.docx .xlsx` | Converted to markdown then extracted via Claude (requires `pip install graphifyy[office]`) |
 | Papers | `.pdf` | Citation mining + concept extraction |

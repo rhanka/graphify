@@ -130,6 +130,8 @@ def save_semantic_cache(
     saved = 0
     for fpath, result in by_file.items():
         p = Path(fpath)
+        if not p.is_absolute():
+            p = Path(root) / p
         if p.exists():
             save_cached(p, result, root)
             saved += 1

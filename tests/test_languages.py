@@ -148,6 +148,21 @@ def test_csharp_finds_usings():
     r = extract_csharp(FIXTURES / "sample.cs")
     assert "imports" in _relations(r)
 
+def test_csharp_inherits_edge():
+    r = extract_csharp(FIXTURES / "sample.cs")
+    inherits = [e for e in r["edges"] if e["relation"] == "inherits"]
+    assert len(inherits) >= 1
+
+def test_csharp_inherits_iprocessor():
+    r = extract_csharp(FIXTURES / "sample.cs")
+    node_by_id = {n["id"]: n["label"] for n in r["nodes"]}
+    found = any(
+        "DataProcessor" in node_by_id.get(e["source"], "") and
+        "IProcessor" in node_by_id.get(e["target"], "")
+        for e in r["edges"] if e["relation"] == "inherits"
+    )
+    assert found, "DataProcessor should have inherits edge to IProcessor"
+
 
 # ── Kotlin ───────────────────────────────────────────────────────────────────
 
@@ -371,3 +386,44 @@ def test_elixir_method_edges():
     r = extract_elixir(FIXTURES / "sample.ex")
     methods = [e for e in r["edges"] if e["relation"] == "method"]
     assert len(methods) >= 3
+
+
+# ── Objective-C ──────────────────────────────────────────────────────────────
+from graphify.extract import extract_objc
+
+
+def test_objc_finds_interface():
+    r = extract_objc(FIXTURES / "sample.m")
+    labels = [n["label"] for n in r["nodes"]]
+    assert "Animal" in labels
+
+
+def test_objc_finds_subclass():
+    r = extract_objc(FIXTURES / "sample.m")
+    labels = [n["label"] for n in r["nodes"]]
+    assert "Dog" in labels
+
+
+def test_objc_finds_methods():
+    r = extract_objc(FIXTURES / "sample.m")
+    labels = [n["label"] for n in r["nodes"]]
+    assert any("speak" in l or "fetch" in l or "initWithName" in l for l in labels)
+
+
+def test_objc_finds_imports():
+    r = extract_objc(FIXTURES / "sample.m")
+    import_edges = [e for e in r["edges"] if e["relation"] == "imports"]
+    assert len(import_edges) >= 1
+
+
+def test_objc_inherits_edge():
+    r = extract_objc(FIXTURES / "sample.m")
+    inherits = [e for e in r["edges"] if e["relation"] == "inherits"]
+    assert len(inherits) >= 1
+
+
+def test_objc_no_dangling_edges():
+    r = extract_objc(FIXTURES / "sample.m")
+    node_ids = {n["id"] for n in r["nodes"]}
+    for e in r["edges"]:
+        assert e["source"] in node_ids, f"Dangling source: {e}"

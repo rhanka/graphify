@@ -2,6 +2,27 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.3.9 (2026-04-07)
+
+- Add: `follow_symlinks` parameter to `detect()` and `collect_files()` — opt-in symlink following with circular symlink cycle detection (#33)
+- Fix: `watch.py` now uses `collect_files()` instead of manual rglob loop for consistency
+- Docs: Codex uses `$graphify .` not `/graphify .` (#36)
+- Test: 5 new symlink tests (367 total)
+
+## 0.3.8 (2026-04-07)
+
+- Add: C# inheritance and interface implementation extraction — `base_list` now emits `inherits` edges for both simple (`identifier`) and generic (`generic_name`) base types (#45)
+- Add: `graphify query "<question>"` CLI command — BFS/DFS traversal of `graph.json` without needing Claude Code skill (`--dfs`, `--budget N`, `--graph <path>` flags)
+- Test: 2 new C# inheritance tests (362 total)
+
+## 0.3.7 (2026-04-07)
+
+- Add: Objective-C support (`.m`, `.mm`) — `@interface`, `@implementation`, `@protocol`, method declarations, `#import` directives, message-expression call edges
+- Add: `--obsidian-dir <path>` flag — write Obsidian vault to a custom directory instead of `graphify-out/obsidian`
+- Fix: semantic cache was only saving 4/17 files — relative paths from subagents now resolved against corpus root before existence check
+- Fix: 75 validation warnings per run for `file_type: "rationale"` — added `"rationale"` to `VALID_FILE_TYPES`
+- Test: 6 Objective-C tests; `.m`/`.mm` added to `test_collect_files_from_dir` supported set (360 total)
+
 ## 0.3.0 (2026-04-06)
 
 - Add: multi-platform support — Codex (`skill-codex.md`), OpenCode (`skill-opencode.md`), OpenClaw (`skill-claw.md`)
