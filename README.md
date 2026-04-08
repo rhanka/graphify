@@ -101,6 +101,42 @@ The always-on hook surfaces `GRAPH_REPORT.md` — a one-page summary of god node
 
 Think of it this way: the always-on hook gives your assistant a map. The `/graphify` commands let it navigate the map precisely.
 
+## Using `graph.json` with an LLM
+
+`graph.json` is not meant to be pasted into a prompt all at once. The useful
+workflow is:
+
+1. Start with `graphify-out/GRAPH_REPORT.md` for the high-level overview.
+2. Use `graphify query` to pull a smaller subgraph for the specific question
+   you want to answer.
+3. Give that focused output to your assistant instead of dumping the full raw
+   corpus.
+
+For example, after running graphify on a project:
+
+```bash
+graphify query "show the auth flow" --graph graphify-out/graph.json
+graphify query "what connects DigestAuth to Response?" --graph graphify-out/graph.json
+```
+
+The output includes node labels, edge types, confidence tags, source files, and
+source locations. That makes it a good intermediate context block for an LLM:
+
+```text
+Use this graph query output to answer the question. Prefer the graph structure
+over guessing, and cite the source files when possible.
+```
+
+If your assistant supports tool calling or MCP, use the graph directly instead
+of pasting text. graphify can expose `graph.json` as an MCP server:
+
+```bash
+python -m graphify.serve graphify-out/graph.json
+```
+
+That gives the assistant structured graph access for repeated queries such as
+`query_graph`, `get_node`, `get_neighbors`, and `shortest_path`.
+
 <details>
 <summary>Manual install (curl)</summary>
 
