@@ -1,4 +1,5 @@
 import json
+import sys
 import networkx as nx
 from pathlib import Path
 from graphify.build import build_from_json
@@ -50,3 +51,26 @@ def test_score_all_keys_match_communities():
     communities = cluster(G)
     scores = score_all(G, communities)
     assert set(scores.keys()) == set(communities.keys())
+
+
+def test_cluster_does_not_write_to_stdout(capsys):
+    """Clustering should not emit ANSI escape codes or other output.
+
+    graspologic's leiden() can emit ANSI escape sequences that break
+    PowerShell 5.1's scroll buffer on Windows (issue #19). The output
+    suppression in _partition() should prevent any output from leaking.
+    """
+    G = make_graph()
+    cluster(G)
+    captured = capsys.readouterr()
+    assert captured.out == "", f"cluster() wrote to stdout: {captured.out!r}"
+
+
+def test_cluster_does_not_write_to_stderr(capsys):
+    """Same as above but for stderr — ANSI codes can go to either stream."""
+    G = make_graph()
+    cluster(G)
+    captured = capsys.readouterr()
+    # Allow logging output (starts with [graphify]) but no raw ANSI codes
+    for line in captured.err.splitlines():
+        assert "\x1b" not in line, f"cluster() wrote ANSI to stderr: {line!r}"

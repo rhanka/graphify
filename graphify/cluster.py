@@ -1,6 +1,21 @@
 """Community detection on NetworkX graphs. Uses Leiden (graspologic) if available, falls back to Louvain (networkx). Splits oversized communities. Returns cohesion scores."""
 from __future__ import annotations
+import contextlib
+import io
+import os
+import sys
 import networkx as nx
+
+
+def _suppress_output():
+    """Context manager to suppress stdout/stderr during library calls.
+
+    graspologic's leiden() emits ANSI escape sequences (progress bars,
+    colored warnings) that corrupt PowerShell 5.1's scroll buffer on
+    Windows (see issue #19). Redirecting stdout/stderr to devnull during
+    the call prevents this without losing any graphify output.
+    """
+    return contextlib.redirect_stdout(io.StringIO())
 
 
 def _partition(G: nx.Graph) -> dict[str, int]:
@@ -8,10 +23,22 @@ def _partition(G: nx.Graph) -> dict[str, int]:
 
     Tries Leiden (graspologic) first — best quality.
     Falls back to Louvain (built into networkx) if graspologic is not installed.
+
+    Output from graspologic is suppressed to prevent ANSI escape codes
+    from corrupting terminal scroll buffers on Windows PowerShell 5.1.
     """
     try:
         from graspologic.partition import leiden
-        return leiden(G)
+        # Suppress graspologic output to prevent ANSI escape codes from
+        # corrupting PowerShell 5.1 scroll buffer (issue #19)
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = io.StringIO()
+            with _suppress_output():
+                result = leiden(G)
+        finally:
+            sys.stderr = old_stderr
+        return result
     except ImportError:
         pass
 
