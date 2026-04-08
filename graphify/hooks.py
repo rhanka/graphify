@@ -8,6 +8,23 @@ _HOOK_MARKER_END = "# graphify-hook-end"
 _CHECKOUT_MARKER = "# graphify-checkout-hook-start"
 _CHECKOUT_MARKER_END = "# graphify-checkout-hook-end"
 
+_PYTHON_DETECT = """\
+# Detect the correct Python interpreter (handles pipx, venv, system installs)
+GRAPHIFY_BIN=$(command -v graphify 2>/dev/null)
+if [ -n "$GRAPHIFY_BIN" ]; then
+    _SHEBANG=$(head -1 "$GRAPHIFY_BIN" | sed 's/^#![[:space:]]*//')
+    case "$_SHEBANG" in
+        */env\\ *) GRAPHIFY_PYTHON="${_SHEBANG#*/env }" ;;
+        *)         GRAPHIFY_PYTHON="$_SHEBANG" ;;
+    esac
+    if ! "$GRAPHIFY_PYTHON" -c "import graphify" 2>/dev/null; then
+        GRAPHIFY_PYTHON="python3"
+    fi
+else
+    GRAPHIFY_PYTHON="python3"
+fi
+"""
+
 _HOOK_SCRIPT = """\
 # graphify-hook-start
 # Auto-rebuilds the knowledge graph after each commit (code files only, no LLM needed).
@@ -18,8 +35,9 @@ if [ -z "$CHANGED" ]; then
     exit 0
 fi
 
+""" + _PYTHON_DETECT + """
 export GRAPHIFY_CHANGED="$CHANGED"
-python3 -c "
+$GRAPHIFY_PYTHON -c "
 import os, sys
 from pathlib import Path
 
@@ -67,8 +85,9 @@ if [ ! -d "graphify-out" ]; then
     exit 0
 fi
 
+""" + _PYTHON_DETECT + """
 echo "[graphify] Branch switched - rebuilding knowledge graph (code files)..."
-python3 -c "
+$GRAPHIFY_PYTHON -c "
 from graphify.watch import _rebuild_code
 from pathlib import Path
 import sys
