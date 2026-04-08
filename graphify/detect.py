@@ -74,11 +74,17 @@ def _looks_like_paper(path: Path) -> bool:
         return False
 
 
+_ASSET_DIR_MARKERS = {".imageset", ".xcassets", ".appiconset", ".colorset", ".launchimage"}
+
+
 def classify_file(path: Path) -> FileType | None:
     ext = path.suffix.lower()
     if ext in CODE_EXTENSIONS:
         return FileType.CODE
     if ext in PAPER_EXTENSIONS:
+        # PDFs inside Xcode asset catalogs are vector icons, not papers
+        if any(part.endswith(tuple(_ASSET_DIR_MARKERS)) for part in path.parts):
+            return None
         return FileType.PAPER
     if ext in IMAGE_EXTENSIONS:
         return FileType.IMAGE

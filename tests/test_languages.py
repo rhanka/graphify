@@ -1,11 +1,11 @@
-"""Tests for language extractors: Java, C, C++, Ruby, C#, Kotlin, Scala, PHP, Swift."""
+"""Tests for language extractors: Java, C, C++, Ruby, C#, Kotlin, Scala, PHP, Swift, Go."""
 from __future__ import annotations
 from pathlib import Path
 import pytest
 from graphify.extract import (
     extract_java, extract_c, extract_cpp, extract_ruby,
     extract_csharp, extract_kotlin, extract_scala, extract_php,
-    extract_swift,
+    extract_swift, extract_go,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -427,3 +427,23 @@ def test_objc_no_dangling_edges():
     node_ids = {n["id"] for n in r["nodes"]}
     for e in r["edges"]:
         assert e["source"] in node_ids, f"Dangling source: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Go
+# ---------------------------------------------------------------------------
+
+def test_go_receiver_methods_share_type_node():
+    """Methods on the same receiver type must share one canonical type node."""
+    r = extract_go(FIXTURES / "sample.go")
+    server_nodes = [n for n in r["nodes"] if n["label"] == "Server"]
+    # Both Start() and Stop() are on *Server — should produce exactly one Server node
+    assert len(server_nodes) == 1
+
+def test_go_receiver_uses_pkg_scope():
+    """Type node id should be scoped to directory, not file stem."""
+    r = extract_go(FIXTURES / "sample.go")
+    server_nodes = [n for n in r["nodes"] if n["label"] == "Server"]
+    assert server_nodes
+    # Should NOT contain the file stem "sample" in the type node id
+    assert "sample" not in server_nodes[0]["id"].split(":")[0]

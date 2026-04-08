@@ -1171,6 +1171,9 @@ def extract_go(path: Path) -> dict:
         return {"nodes": [], "edges": [], "error": str(e)}
 
     stem = path.stem
+    # Use directory name as package scope so methods on the same type across
+    # multiple files in a package share one canonical type node.
+    pkg_scope = path.parent.name or stem
     str_path = str(path)
     nodes: list[dict] = []
     edges: list[dict] = []
@@ -1235,7 +1238,7 @@ def extract_go(path: Path) -> dict:
                 method_name = _read_text(name_node, source)
                 line = node.start_point[0] + 1
                 if receiver_type:
-                    parent_nid = _make_id(stem, receiver_type)
+                    parent_nid = _make_id(pkg_scope, receiver_type)
                     add_node(parent_nid, receiver_type, line)
                     method_nid = _make_id(parent_nid, method_name)
                     add_node(method_nid, f".{method_name}()", line)
@@ -1256,7 +1259,7 @@ def extract_go(path: Path) -> dict:
                     if name_node:
                         type_name = _read_text(name_node, source)
                         line = child.start_point[0] + 1
-                        type_nid = _make_id(stem, type_name)
+                        type_nid = _make_id(pkg_scope, type_name)
                         add_node(type_nid, type_name, line)
                         add_edge(file_nid, type_nid, "contains", line)
             return
@@ -2408,9 +2411,14 @@ def extract(paths: list[Path]) -> dict:
 
     # Add cross-file class-level edges (Python only - uses Python parser internally)
     py_paths = [p for p in paths if p.suffix == ".py"]
-    py_results = [r for r, p in zip(per_file, paths) if p.suffix == ".py"]
-    cross_file_edges = _resolve_cross_file_imports(py_results, py_paths)
-    all_edges.extend(cross_file_edges)
+    if py_paths:
+        py_results = [r for r, p in zip(per_file, paths) if p.suffix == ".py"]
+        try:
+            cross_file_edges = _resolve_cross_file_imports(py_results, py_paths)
+            all_edges.extend(cross_file_edges)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Cross-file import resolution failed, skipping: %s", exc)
 
     return {
         "nodes": all_nodes,
