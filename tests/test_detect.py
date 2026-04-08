@@ -15,6 +15,15 @@ def test_classify_markdown():
 def test_classify_pdf():
     assert classify_file(Path("paper.pdf")) == FileType.PAPER
 
+def test_classify_pdf_in_xcassets_skipped():
+    # PDFs inside Xcode asset catalogs are vector icons, not papers
+    asset_pdf = Path("MyApp/Images.xcassets/icon.imageset/icon.pdf")
+    assert classify_file(asset_pdf) is None
+
+def test_classify_pdf_in_xcassets_root_skipped():
+    asset_pdf = Path("Pods/HXPHPicker/Assets.xcassets/photo.pdf")
+    assert classify_file(asset_pdf) is None
+
 def test_classify_unknown_returns_none():
     assert classify_file(Path("archive.zip")) is None
 
