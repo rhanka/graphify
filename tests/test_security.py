@@ -168,9 +168,11 @@ def test_validate_graph_path_raises_if_file_missing(tmp_path):
 # sanitize_label
 # ---------------------------------------------------------------------------
 
-def test_sanitize_label_escapes_html():
-    assert "&lt;script&gt;" in sanitize_label("<script>")
-    assert "&amp;" in sanitize_label("foo & bar")
+def test_sanitize_label_passthrough_html_chars():
+    # sanitize_label does NOT HTML-escape — callers that inject into HTML must
+    # wrap with html.escape() themselves (e.g. the title in to_html())
+    assert sanitize_label("<script>") == "<script>"
+    assert sanitize_label("foo & bar") == "foo & bar"
 
 def test_sanitize_label_strips_control_chars():
     result = sanitize_label("hello\x00\x1fworld")

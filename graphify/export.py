@@ -1,5 +1,6 @@
 # write graph to HTML, JSON, SVG, GraphML, Obsidian vault, and Neo4j Cypher
 from __future__ import annotations
+import html as _html
 import json
 import math
 import re
@@ -371,7 +372,7 @@ def to_html(
     edges_json = json.dumps(vis_edges)
     legend_json = json.dumps(legend_data)
     hyperedges_json = json.dumps(getattr(G, "graph", {}).get("hyperedges", []))
-    title = sanitize_label(str(output_path))
+    title = _html.escape(sanitize_label(str(output_path)))
     stats = f"{G.number_of_nodes()} nodes &middot; {G.number_of_edges()} edges &middot; {len(communities)} communities"
 
     html = f"""<!DOCTYPE html>

@@ -382,7 +382,9 @@ def main() -> None:
         if len(sys.argv) < 3:
             print("Usage: graphify query \"<question>\" [--dfs] [--budget N] [--graph path]", file=sys.stderr)
             sys.exit(1)
-        from graphify.serve import _load_graph, _score_nodes, _bfs, _dfs, _subgraph_to_text
+        from graphify.serve import _score_nodes, _bfs, _dfs, _subgraph_to_text
+        from graphify.security import sanitize_label
+        from networkx.readwrite import json_graph
         question = sys.argv[2]
         use_dfs = "--dfs" in sys.argv
         budget = 2000
@@ -391,14 +393,39 @@ def main() -> None:
         i = 0
         while i < len(args):
             if args[i] == "--budget" and i + 1 < len(args):
-                budget = int(args[i + 1]); i += 2
+                try:
+                    budget = int(args[i + 1])
+                except ValueError:
+                    print(f"error: --budget must be an integer", file=sys.stderr)
+                    sys.exit(1)
+                i += 2
             elif args[i].startswith("--budget="):
-                budget = int(args[i].split("=", 1)[1]); i += 1
+                try:
+                    budget = int(args[i].split("=", 1)[1])
+                except ValueError:
+                    print(f"error: --budget must be an integer", file=sys.stderr)
+                    sys.exit(1)
+                i += 1
             elif args[i] == "--graph" and i + 1 < len(args):
                 graph_path = args[i + 1]; i += 2
             else:
                 i += 1
-        G = _load_graph(graph_path)
+        # Load graph directly — validate_graph_path restricts to graphify-out/
+        # so for custom --graph paths we resolve and load directly after existence check
+        gp = Path(graph_path).resolve()
+        if not gp.exists():
+            print(f"error: graph file not found: {gp}", file=sys.stderr)
+            sys.exit(1)
+        if not gp.suffix == ".json":
+            print(f"error: graph file must be a .json file", file=sys.stderr)
+            sys.exit(1)
+        try:
+            import json as _json
+            import networkx as _nx
+            G = json_graph.node_link_graph(_json.loads(gp.read_text(encoding="utf-8")), edges="links")
+        except Exception as exc:
+            print(f"error: could not load graph: {exc}", file=sys.stderr)
+            sys.exit(1)
         terms = [t.lower() for t in question.split() if len(t) > 2]
         scored = _score_nodes(G, terms)
         if not scored:
