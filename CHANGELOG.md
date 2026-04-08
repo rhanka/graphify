@@ -2,6 +2,11 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.3.14 (2026-04-08)
+
+- Fix: `graphify codex install` now also writes a PreToolUse hook to `.codex/hooks.json` so the graph reminder fires before every Bash tool call (#86)
+- Fix: `--update` now prunes ghost nodes from deleted files before merging new extraction (#51)
+
 ## 0.3.13 (2026-04-08)
 
 - Fix: PreToolUse hook now outputs `additionalContext` JSON so Claude actually sees the graph reminder before Glob/Grep calls (#83)

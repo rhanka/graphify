@@ -150,6 +150,65 @@ Rules:
 
 _AGENTS_MD_MARKER = "## graphify"
 
+_CODEX_HOOK = {
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": (
+                            "[ -f graphify-out/graph.json ] && "
+                            r"""echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"graphify: Knowledge graph exists. Read graphify-out/GRAPH_REPORT.md for god nodes and community structure before searching raw files."}}' """
+                            "|| true"
+                        ),
+                    }
+                ],
+            }
+        ]
+    }
+}
+
+
+def _install_codex_hook(project_dir: Path) -> None:
+    """Add graphify PreToolUse hook to .codex/hooks.json."""
+    hooks_path = project_dir / ".codex" / "hooks.json"
+    hooks_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if hooks_path.exists():
+        try:
+            existing = json.loads(hooks_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            existing = {}
+    else:
+        existing = {}
+
+    pre_tool = existing.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    if any("graphify" in str(h) for h in pre_tool):
+        print(f"  .codex/hooks.json  ->  hook already registered (no change)")
+        return
+
+    pre_tool.extend(_CODEX_HOOK["hooks"]["PreToolUse"])
+    hooks_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    print(f"  .codex/hooks.json  ->  PreToolUse hook registered")
+
+
+def _uninstall_codex_hook(project_dir: Path) -> None:
+    """Remove graphify PreToolUse hook from .codex/hooks.json."""
+    hooks_path = project_dir / ".codex" / "hooks.json"
+    if not hooks_path.exists():
+        return
+    try:
+        existing = json.loads(hooks_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    pre_tool = existing.get("hooks", {}).get("PreToolUse", [])
+    filtered = [h for h in pre_tool if "graphify" not in str(h)]
+    existing["hooks"]["PreToolUse"] = filtered
+    hooks_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    print(f"  .codex/hooks.json  ->  PreToolUse hook removed")
+
 
 def _agents_install(project_dir: Path, platform: str) -> None:
     """Write the graphify section to the local AGENTS.md (Codex/OpenCode/OpenClaw)."""
@@ -166,12 +225,17 @@ def _agents_install(project_dir: Path, platform: str) -> None:
 
     target.write_text(new_content, encoding="utf-8")
     print(f"graphify section written to {target.resolve()}")
+
+    if platform == "codex":
+        _install_codex_hook(project_dir or Path("."))
+
     print()
     print(f"{platform.capitalize()} will now check the knowledge graph before answering")
     print("codebase questions and rebuild it after code changes.")
-    print()
-    print("Note: unlike Claude Code, there is no PreToolUse hook equivalent for")
-    print(f"{platform.capitalize()} — the AGENTS.md rules are the always-on mechanism.")
+    if platform != "codex":
+        print()
+        print("Note: unlike Claude Code, there is no PreToolUse hook equivalent for")
+        print(f"{platform.capitalize()} — the AGENTS.md rules are the always-on mechanism.")
 
 
 def _agents_uninstall(project_dir: Path) -> None:
@@ -363,6 +427,8 @@ def main() -> None:
             _agents_install(Path("."), cmd)
         elif subcmd == "uninstall":
             _agents_uninstall(Path("."))
+            if cmd == "codex":
+                _uninstall_codex_hook(Path("."))
         else:
             print(f"Usage: graphify {cmd} [install|uninstall]", file=sys.stderr)
             sys.exit(1)
