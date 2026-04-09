@@ -2546,6 +2546,25 @@ def extract_elixir(path: Path) -> dict:
 
 # ── Main extract and collect_files ────────────────────────────────────────────
 
+
+def _check_tree_sitter_version() -> None:
+    """Raise a clear error if tree-sitter is too old for the new Language API."""
+    try:
+        from tree_sitter import LANGUAGE_VERSION
+    except ImportError:
+        raise ImportError(
+            "tree-sitter is not installed. Run: pip install 'tree-sitter>=0.23.0'"
+        )
+    # Language API v2 starts at LANGUAGE_VERSION 14
+    if LANGUAGE_VERSION < 14:
+        import tree_sitter as _ts
+        raise RuntimeError(
+            f"tree-sitter {getattr(_ts, '__version__', 'unknown')} is too old. "
+            f"graphify requires tree-sitter >= 0.23.0 (Language API v2). "
+            f"Run: pip install --upgrade tree-sitter"
+        )
+
+
 def extract(paths: list[Path]) -> dict:
     """Extract AST nodes and edges from a list of code files.
 
@@ -2554,6 +2573,7 @@ def extract(paths: list[Path]) -> dict:
     2. Cross-file import resolution: turns file-level imports into
        class-level INFERRED edges (DigestAuth --uses--> Response)
     """
+    _check_tree_sitter_version()
     per_file: list[dict] = []
 
     # Infer a common root for cache keys
