@@ -68,7 +68,7 @@ if [ -n "$GRAPHIFY_BIN" ]; then
 else
     PYTHON="python3"
 fi
-"$PYTHON" -c "import graphify" 2>/dev/null || pip install graphifyy -q --break-system-packages 2>&1 | tail -3
+"$PYTHON" -c "import graphify" 2>/dev/null || "$PYTHON" -m pip install graphifyy -q 2>/dev/null || "$PYTHON" -m pip install graphifyy -q --break-system-packages 2>&1 | tail -3
 mkdir -p graphify-out
 # Write interpreter path for all subsequent steps
 "$PYTHON" -c "import sys; open('graphify-out/.graphify_python', 'w').write(sys.executable)"
