@@ -10,6 +10,11 @@ Full release notes with details on each version: [GitHub Releases](https://githu
 - Docs: Korean README added (README.ko-KR.md) (#112)
 - Refactor: `save_query_result` inline Python blocks in all 6 skill files replaced with `graphify save-result` CLI command — shorter, maintainable, less tokens for LLM (#114)
 - Add: `graphify save-result` CLI subcommand — saves Q&A results to memory dir without inline Python
+- Fix: HTML graph click detection now uses hover-tracking (`hoveredNodeId`) — more reliable than vis.js click params on small/dense nodes (#82)
+- Fix: `mkdir -p graphify-out` now runs before writing `.graphify_python` in `skill.md` — prevents write failure on first run; `.graphify_python` no longer deleted in Step 9 cleanup across all skill files so follow-up commands keep their interpreter (#93)
+- Fix: `skill-trae.md` added to `pyproject.toml` package-data — Trae users no longer hit `ModuleNotFoundError` after `pip install` (#102)
+- Fix: `analyze.py` and `watch.py` now import extension sets from `detect.py` instead of local copies — Swift, Lua, Zig, PowerShell, Elixir, JSX, Julia, Objective-C files no longer misclassified as documents (#109)
+- Refactor: dead `build_graph()` function removed from `cluster.py` (#109)
 
 ## 0.3.17 (2026-04-08)
 
