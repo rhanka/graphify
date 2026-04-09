@@ -225,3 +225,41 @@ def test_opencode_agents_uninstall_removes_plugin(tmp_path):
     if config_file.exists():
         config = _json.loads(config_file.read_text())
         assert not any("graphify.js" in p for p in config.get("plugin", []))
+
+
+# ── Cursor ────────────────────────────────────────────────────────────────────
+
+def test_cursor_install_writes_rule(tmp_path):
+    """cursor install writes .cursor/rules/graphify.mdc."""
+    from graphify.__main__ import _cursor_install
+    _cursor_install(tmp_path)
+    rule = tmp_path / ".cursor" / "rules" / "graphify.mdc"
+    assert rule.exists()
+    content = rule.read_text()
+    assert "alwaysApply: true" in content
+    assert "graphify-out/GRAPH_REPORT.md" in content
+
+
+def test_cursor_install_idempotent(tmp_path):
+    """cursor install does not overwrite an existing rule file."""
+    from graphify.__main__ import _cursor_install
+    _cursor_install(tmp_path)
+    rule = tmp_path / ".cursor" / "rules" / "graphify.mdc"
+    original = rule.read_text()
+    _cursor_install(tmp_path)
+    assert rule.read_text() == original
+
+
+def test_cursor_uninstall_removes_rule(tmp_path):
+    """cursor uninstall removes the rule file."""
+    from graphify.__main__ import _cursor_install, _cursor_uninstall
+    _cursor_install(tmp_path)
+    _cursor_uninstall(tmp_path)
+    rule = tmp_path / ".cursor" / "rules" / "graphify.mdc"
+    assert not rule.exists()
+
+
+def test_cursor_uninstall_noop_if_not_installed(tmp_path):
+    """cursor uninstall does nothing if rule was never written."""
+    from graphify.__main__ import _cursor_uninstall
+    _cursor_uninstall(tmp_path)  # should not raise

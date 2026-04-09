@@ -53,7 +53,7 @@ Every relationship is tagged `EXTRACTED` (found directly in source), `INFERRED` 
 pip install graphifyy && graphify install
 ```
 
-> The PyPI package is temporarily named `graphifyy` while the `graphify` name is being reclaimed. The CLI and skill command are still `graphify`.
+> **Official package:** The PyPI package is named `graphifyy` (install with `pip install graphifyy`). Other packages named `graphify*` on PyPI are not affiliated with this project. The only official repository is [safishamsi/graphify](https://github.com/safishamsi/graphify). The CLI and skill command are still `graphify`.
 
 ### Platform support
 
@@ -91,6 +91,7 @@ After building a graph, run this once in your project:
 | Factory Droid | `graphify droid install` |
 | Trae | `graphify trae install` |
 | Trae CN | `graphify trae-cn install` |
+| Cursor | `graphify cursor install` |
 
 **Claude Code** does two things: writes a `CLAUDE.md` section telling Claude to read `graphify-out/GRAPH_REPORT.md` before answering architecture questions, and installs a **PreToolUse hook** (`settings.json`) that fires before every Glob and Grep call. If a knowledge graph exists, Claude sees: _"graphify: Knowledge graph exists. Read GRAPH_REPORT.md for god nodes and community structure before searching raw files."_ — so Claude navigates via the graph instead of grepping through every file.
 

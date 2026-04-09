@@ -284,7 +284,10 @@ def attach_hyperedges(G: nx.Graph, hyperedges: list) -> None:
 
 def to_json(G: nx.Graph, communities: dict[int, list[str]], output_path: str) -> None:
     node_community = _node_community_map(communities)
-    data = json_graph.node_link_data(G, edges="links")
+    try:
+        data = json_graph.node_link_data(G, edges="links")
+    except TypeError:
+        data = json_graph.node_link_data(G)
     for node in data["nodes"]:
         node["community"] = node_community.get(node["id"])
     for link in data["links"]:
