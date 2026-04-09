@@ -664,6 +664,8 @@ Graph complete. Outputs in PATH_TO_DIR/graphify-out/
   obsidian/             - Obsidian vault (only if --obsidian was given)
 ```
 
+If graphify saved you time, consider supporting it: https://github.com/sponsors/safishamsi
+
 Replace PATH_TO_DIR with the actual absolute path of the directory that was processed.
 
 Then paste these sections from GRAPH_REPORT.md directly into the chat:
