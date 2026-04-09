@@ -160,6 +160,87 @@ Rules:
 
 _AGENTS_MD_MARKER = "## graphify"
 
+# OpenCode tool.execute.before plugin — fires before every tool call.
+# Injects a graph reminder into bash command output when graph.json exists.
+_OPENCODE_PLUGIN_JS = """\
+// graphify OpenCode plugin
+// Injects a knowledge graph reminder before bash tool calls when the graph exists.
+import { existsSync } from "fs";
+import { join } from "path";
+
+export const GraphifyPlugin = async ({ directory }) => {
+  let reminded = false;
+
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (reminded) return;
+      if (!existsSync(join(directory, "graphify-out", "graph.json"))) return;
+
+      if (input.tool === "bash") {
+        output.args.command =
+          'echo "[graphify] Knowledge graph available. Read graphify-out/GRAPH_REPORT.md for god nodes and architecture context before searching files." && ' +
+          output.args.command;
+        reminded = true;
+      }
+    },
+  };
+};
+"""
+
+_OPENCODE_PLUGIN_PATH = Path(".opencode") / "plugins" / "graphify.js"
+_OPENCODE_CONFIG_PATH = Path("opencode.json")
+
+
+def _install_opencode_plugin(project_dir: Path) -> None:
+    """Write graphify.js plugin and register it in opencode.json."""
+    plugin_file = project_dir / _OPENCODE_PLUGIN_PATH
+    plugin_file.parent.mkdir(parents=True, exist_ok=True)
+    plugin_file.write_text(_OPENCODE_PLUGIN_JS, encoding="utf-8")
+    print(f"  {_OPENCODE_PLUGIN_PATH}  ->  tool.execute.before hook written")
+
+    config_file = project_dir / _OPENCODE_CONFIG_PATH
+    if config_file.exists():
+        try:
+            config = json.loads(config_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            config = {}
+    else:
+        config = {}
+
+    plugins = config.setdefault("plugin", [])
+    entry = str(_OPENCODE_PLUGIN_PATH)
+    if entry not in plugins:
+        plugins.append(entry)
+        config_file.write_text(json.dumps(config, indent=2), encoding="utf-8")
+        print(f"  {_OPENCODE_CONFIG_PATH}  ->  plugin registered")
+    else:
+        print(f"  {_OPENCODE_CONFIG_PATH}  ->  plugin already registered (no change)")
+
+
+def _uninstall_opencode_plugin(project_dir: Path) -> None:
+    """Remove graphify.js plugin and deregister from opencode.json."""
+    plugin_file = project_dir / _OPENCODE_PLUGIN_PATH
+    if plugin_file.exists():
+        plugin_file.unlink()
+        print(f"  {_OPENCODE_PLUGIN_PATH}  ->  removed")
+
+    config_file = project_dir / _OPENCODE_CONFIG_PATH
+    if not config_file.exists():
+        return
+    try:
+        config = json.loads(config_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    plugins = config.get("plugin", [])
+    entry = str(_OPENCODE_PLUGIN_PATH)
+    if entry in plugins:
+        plugins.remove(entry)
+        if not plugins:
+            config.pop("plugin")
+        config_file.write_text(json.dumps(config, indent=2), encoding="utf-8")
+        print(f"  {_OPENCODE_CONFIG_PATH}  ->  plugin deregistered")
+
+
 _CODEX_HOOK = {
     "hooks": {
         "PreToolUse": [
@@ -238,11 +319,13 @@ def _agents_install(project_dir: Path, platform: str) -> None:
 
     if platform == "codex":
         _install_codex_hook(project_dir or Path("."))
+    elif platform == "opencode":
+        _install_opencode_plugin(project_dir or Path("."))
 
     print()
     print(f"{platform.capitalize()} will now check the knowledge graph before answering")
     print("codebase questions and rebuild it after code changes.")
-    if platform != "codex":
+    if platform not in ("codex", "opencode"):
         print()
         print("Note: unlike Claude Code, there is no PreToolUse hook equivalent for")
         print(f"{platform.capitalize()} — the AGENTS.md rules are the always-on mechanism.")
@@ -273,6 +356,8 @@ def _agents_uninstall(project_dir: Path) -> None:
     else:
         target.unlink()
         print(f"AGENTS.md was empty after removal - deleted {target.resolve()}")
+
+    _uninstall_opencode_plugin(project_dir or Path("."))
 
 
 def claude_install(project_dir: Path | None = None) -> None:
@@ -402,8 +487,8 @@ def main() -> None:
         print("  claude uninstall        remove graphify section from CLAUDE.md + PreToolUse hook")
         print("  codex install           write graphify section to AGENTS.md (Codex)")
         print("  codex uninstall         remove graphify section from AGENTS.md")
-        print("  opencode install        write graphify section to AGENTS.md (OpenCode)")
-        print("  opencode uninstall      remove graphify section from AGENTS.md")
+        print("  opencode install        write graphify section to AGENTS.md + tool.execute.before plugin (OpenCode)")
+        print("  opencode uninstall      remove graphify section from AGENTS.md + plugin")
         print("  claw install            write graphify section to AGENTS.md (OpenClaw)")
         print("  claw uninstall          remove graphify section from AGENTS.md")
         print("  droid install           write graphify section to AGENTS.md (Factory Droid)")
