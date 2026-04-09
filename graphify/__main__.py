@@ -450,13 +450,12 @@ def _agents_install(project_dir: Path, platform: str) -> None:
         content = target.read_text(encoding="utf-8")
         if _AGENTS_MD_MARKER in content:
             print(f"graphify already configured in AGENTS.md")
-            return
-        new_content = content.rstrip() + "\n\n" + _AGENTS_MD_SECTION
+        else:
+            target.write_text(content.rstrip() + "\n\n" + _AGENTS_MD_SECTION, encoding="utf-8")
+            print(f"graphify section written to {target.resolve()}")
     else:
-        new_content = _AGENTS_MD_SECTION
-
-    target.write_text(new_content, encoding="utf-8")
-    print(f"graphify section written to {target.resolve()}")
+        target.write_text(_AGENTS_MD_SECTION, encoding="utf-8")
+        print(f"graphify section written to {target.resolve()}")
 
     if platform == "codex":
         _install_codex_hook(project_dir or Path("."))
