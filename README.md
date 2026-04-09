@@ -95,7 +95,9 @@ After building a graph, run this once in your project:
 
 **Codex** writes to `AGENTS.md` and also installs a **PreToolUse hook** in `.codex/hooks.json` that fires before every Bash tool call — same always-on mechanism as Claude Code.
 
-**OpenCode, OpenClaw, Factory Droid, Trae** write the same rules to `AGENTS.md` in your project root. These platforms don't support PreToolUse hooks, so AGENTS.md is the always-on mechanism.
+**OpenCode** writes to `AGENTS.md` and also installs a **`tool.execute.before` plugin** (`.opencode/plugins/graphify.js` + `opencode.json` registration) that fires before bash tool calls and injects the graph reminder into tool output when the graph exists.
+
+**OpenClaw, Factory Droid, Trae** write the same rules to `AGENTS.md` in your project root. These platforms don't support tool hooks, so AGENTS.md is the always-on mechanism.
 
 Uninstall with the matching uninstall command (e.g. `graphify claude uninstall`).
 
@@ -201,7 +203,7 @@ graphify hook status
 graphify claude install            # CLAUDE.md + PreToolUse hook (Claude Code)
 graphify claude uninstall
 graphify codex install             # AGENTS.md (Codex)
-graphify opencode install          # AGENTS.md (OpenCode)
+graphify opencode install          # AGENTS.md + tool.execute.before plugin (OpenCode)
 graphify claw install              # AGENTS.md (OpenClaw)
 graphify droid install             # AGENTS.md (Factory Droid)
 graphify trae install              # AGENTS.md (Trae)
