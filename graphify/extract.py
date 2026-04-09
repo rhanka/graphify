@@ -956,10 +956,10 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
                             "source": caller_nid,
                             "target": tgt_nid,
                             "relation": "calls",
-                            "confidence": "INFERRED",
+                            "confidence": "EXTRACTED",
                             "source_file": str_path,
                             "source_location": f"L{line}",
-                            "weight": 0.8,
+                            "weight": 1.0,
                         })
 
         for child in node.children:
@@ -1533,10 +1533,10 @@ def extract_go(path: Path) -> dict:
                             "source": caller_nid,
                             "target": tgt_nid,
                             "relation": "calls",
-                            "confidence": "INFERRED",
+                            "confidence": "EXTRACTED",
                             "source_file": str_path,
                             "source_location": f"L{line}",
-                            "weight": 0.8,
+                            "weight": 1.0,
                         })
         for child in node.children:
             walk_calls(child, caller_nid)
@@ -1702,10 +1702,10 @@ def extract_rust(path: Path) -> dict:
                             "source": caller_nid,
                             "target": tgt_nid,
                             "relation": "calls",
-                            "confidence": "INFERRED",
+                            "confidence": "EXTRACTED",
                             "source_file": str_path,
                             "source_location": f"L{line}",
-                            "weight": 0.8,
+                            "weight": 1.0,
                         })
         for child in node.children:
             walk_calls(child, caller_nid)
@@ -1866,7 +1866,7 @@ def extract_zig(path: Path) -> dict:
                         seen_call_pairs.add(pair)
                         add_edge(caller_nid, tgt_nid, "calls",
                                  node.start_point[0] + 1,
-                                 confidence="INFERRED", weight=0.8)
+                                 confidence="EXTRACTED", weight=1.0)
         for child in node.children:
             walk_calls(child, caller_nid)
 
@@ -2022,7 +2022,7 @@ def extract_powershell(path: Path) -> dict:
                             seen_call_pairs.add(pair)
                             add_edge(caller_nid, tgt_nid, "calls",
                                      node.start_point[0] + 1,
-                                     confidence="INFERRED", weight=0.8)
+                                     confidence="EXTRACTED", weight=1.0)
         for child in node.children:
             walk_calls(child, caller_nid)
 
@@ -2359,7 +2359,7 @@ def extract_objc(path: Path) -> dict:
                                 if pair not in seen_calls and caller_nid != candidate:
                                     seen_calls.add(pair)
                                     add_edge(caller_nid, candidate, "calls", body_node.start_point[0] + 1,
-                                             confidence="INFERRED", weight=0.8)
+                                             confidence="EXTRACTED", weight=1.0)
             for child in n.children:
                 walk_calls(child)
         walk_calls(body_node)
@@ -2532,7 +2532,7 @@ def extract_elixir(path: Path) -> dict:
                 if pair not in seen_call_pairs:
                     seen_call_pairs.add(pair)
                     add_edge(caller_nid, tgt_nid, "calls",
-                             node.start_point[0] + 1, confidence="INFERRED", weight=0.8)
+                             node.start_point[0] + 1, confidence="EXTRACTED", weight=1.0)
         for child in node.children:
             walk_calls(child, caller_nid)
 

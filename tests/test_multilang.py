@@ -47,11 +47,11 @@ def test_ts_emits_calls():
     # .post() calls .get()
     assert any("post" in src and "get" in tgt for src, tgt in calls)
 
-def test_ts_calls_are_inferred():
+def test_ts_calls_are_extracted():
     r = extract_js(FIXTURES / "sample.ts")
     for e in r["edges"]:
         if e["relation"] == "calls":
-            assert e["confidence"] == "INFERRED"
+            assert e["confidence"] == "EXTRACTED"
 
 def test_ts_no_dangling_edges():
     r = extract_js(FIXTURES / "sample.ts")
@@ -83,9 +83,9 @@ def test_go_emits_calls():
     # main() calls NewServer and Start
     assert len(_call_pairs(r)) > 0
 
-def test_go_has_inferred_calls():
+def test_go_has_extracted_calls():
     r = extract_go(FIXTURES / "sample.go")
-    assert "INFERRED" in _confidences(r)
+    assert "EXTRACTED" in _confidences(r)
 
 def test_go_no_dangling_edges():
     r = extract_go(FIXTURES / "sample.go")
@@ -117,11 +117,11 @@ def test_rust_emits_calls():
     calls = _call_pairs(r)
     assert any("build_graph" in src for src, _ in calls)
 
-def test_rust_calls_are_inferred():
+def test_rust_calls_are_extracted():
     r = extract_rust(FIXTURES / "sample.rs")
     for e in r["edges"]:
         if e["relation"] == "calls":
-            assert e["confidence"] == "INFERRED"
+            assert e["confidence"] == "EXTRACTED"
 
 def test_rust_no_dangling_edges():
     r = extract_rust(FIXTURES / "sample.rs")

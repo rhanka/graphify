@@ -115,12 +115,13 @@ def test_calls_edges_emitted():
     assert len(calls) > 0, "Expected at least one calls edge"
 
 
-def test_calls_edges_are_inferred():
+def test_calls_edges_are_extracted():
+    """AST-resolved call edges are deterministic and should be EXTRACTED/1.0."""
     result = extract_python(FIXTURES / "sample_calls.py")
     for edge in result["edges"]:
         if edge["relation"] == "calls":
-            assert edge["confidence"] == "INFERRED"
-            assert edge["weight"] == 0.8
+            assert edge["confidence"] == "EXTRACTED"
+            assert edge["weight"] == 1.0
 
 
 def test_calls_no_self_loops():

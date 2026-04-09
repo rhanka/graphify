@@ -76,11 +76,11 @@ def test_c_emits_calls():
     r = extract_c(FIXTURES / "sample.c")
     assert any(e["relation"] == "calls" for e in r["edges"])
 
-def test_c_calls_are_inferred():
+def test_c_calls_are_extracted():
     r = extract_c(FIXTURES / "sample.c")
     for e in r["edges"]:
         if e["relation"] == "calls":
-            assert e["confidence"] == "INFERRED"
+            assert e["confidence"] == "EXTRACTED"
 
 
 # ── C++ ───────────────────────────────────────────────────────────────────────
