@@ -160,6 +160,45 @@ Rules:
 
 _AGENTS_MD_MARKER = "## graphify"
 
+_CURSOR_RULE_PATH = Path(".cursor") / "rules" / "graphify.mdc"
+_CURSOR_RULE = """\
+---
+description: graphify knowledge graph context
+alwaysApply: true
+---
+
+This project has a graphify knowledge graph at graphify-out/.
+
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+"""
+
+
+def _cursor_install(project_dir: Path) -> None:
+    """Write .cursor/rules/graphify.mdc with alwaysApply: true."""
+    rule_path = (project_dir or Path(".")) / _CURSOR_RULE_PATH
+    rule_path.parent.mkdir(parents=True, exist_ok=True)
+    if rule_path.exists():
+        print(f"graphify rule already exists at {rule_path} (no change)")
+        return
+    rule_path.write_text(_CURSOR_RULE, encoding="utf-8")
+    print(f"graphify rule written to {rule_path.resolve()}")
+    print()
+    print("Cursor will now always include the knowledge graph context.")
+    print("Run /graphify . first to build the graph if you haven't already.")
+
+
+def _cursor_uninstall(project_dir: Path) -> None:
+    """Remove .cursor/rules/graphify.mdc."""
+    rule_path = (project_dir or Path(".")) / _CURSOR_RULE_PATH
+    if not rule_path.exists():
+        print("No graphify Cursor rule found - nothing to do")
+        return
+    rule_path.unlink()
+    print(f"graphify Cursor rule removed from {rule_path.resolve()}")
+
+
 # OpenCode tool.execute.before plugin — fires before every tool call.
 # Injects a graph reminder into bash command output when graph.json exists.
 _OPENCODE_PLUGIN_JS = """\
@@ -483,6 +522,8 @@ def main() -> None:
         print("  hook install            install post-commit/post-checkout git hooks (all platforms)")
         print("  hook uninstall          remove git hooks")
         print("  hook status             check if git hooks are installed")
+        print("  cursor install          write .cursor/rules/graphify.mdc (Cursor)")
+        print("  cursor uninstall        remove .cursor/rules/graphify.mdc")
         print("  claude install          write graphify section to CLAUDE.md + PreToolUse hook (Claude Code)")
         print("  claude uninstall        remove graphify section from CLAUDE.md + PreToolUse hook")
         print("  codex install           write graphify section to AGENTS.md (Codex)")
@@ -525,6 +566,15 @@ def main() -> None:
             claude_uninstall()
         else:
             print("Usage: graphify claude [install|uninstall]", file=sys.stderr)
+            sys.exit(1)
+    elif cmd == "cursor":
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            _cursor_install(Path("."))
+        elif subcmd == "uninstall":
+            _cursor_uninstall(Path("."))
+        else:
+            print("Usage: graphify cursor [install|uninstall]", file=sys.stderr)
             sys.exit(1)
     elif cmd in ("codex", "opencode", "claw", "droid", "trae", "trae-cn"):
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
