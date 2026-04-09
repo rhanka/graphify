@@ -137,6 +137,15 @@ def test_file_category():
     assert _file_category("flash.pdf") == "paper"
     assert _file_category("diagram.png") == "image"
     assert _file_category("notes.md") == "doc"
+    # Languages added in later releases — would misclassify as "doc" without detect.py import
+    assert _file_category("app.swift") == "code"
+    assert _file_category("plugin.lua") == "code"
+    assert _file_category("build.zig") == "code"
+    assert _file_category("deploy.ps1") == "code"
+    assert _file_category("server.ex") == "code"
+    assert _file_category("component.jsx") == "code"
+    assert _file_category("analysis.jl") == "code"
+    assert _file_category("view.m") == "code"
 
 
 def test_is_concept_node_empty_source():
