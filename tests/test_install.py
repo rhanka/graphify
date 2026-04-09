@@ -9,6 +9,10 @@ PLATFORMS = {
     "codex": (".agents/skills/graphify/SKILL.md",),
     "opencode": (".config/opencode/skills/graphify/SKILL.md",),
     "claw": (".claw/skills/graphify/SKILL.md",),
+    "droid": (".factory/skills/graphify/SKILL.md",),
+    "trae": (".trae/skills/graphify/SKILL.md",),
+    "trae-cn": (".trae-cn/skills/graphify/SKILL.md",),
+    "windows": (".claude/skills/graphify/SKILL.md",),
 }
 
 
@@ -36,6 +40,26 @@ def test_install_opencode(tmp_path):
 def test_install_claw(tmp_path):
     _install(tmp_path, "claw")
     assert (tmp_path / ".claw" / "skills" / "graphify" / "SKILL.md").exists()
+
+
+def test_install_droid(tmp_path):
+    _install(tmp_path, "droid")
+    assert (tmp_path / ".factory" / "skills" / "graphify" / "SKILL.md").exists()
+
+
+def test_install_trae(tmp_path):
+    _install(tmp_path, "trae")
+    assert (tmp_path / ".trae" / "skills" / "graphify" / "SKILL.md").exists()
+
+
+def test_install_trae_cn(tmp_path):
+    _install(tmp_path, "trae-cn")
+    assert (tmp_path / ".trae-cn" / "skills" / "graphify" / "SKILL.md").exists()
+
+
+def test_install_windows(tmp_path):
+    _install(tmp_path, "windows")
+    assert (tmp_path / ".claude" / "skills" / "graphify" / "SKILL.md").exists()
 
 
 def test_install_unknown_platform_exits(tmp_path):
@@ -67,10 +91,10 @@ def test_claw_skill_is_sequential():
 
 
 def test_all_skill_files_exist_in_package():
-    """All four platform skill files must be present in the installed package."""
+    """All installable platform skill files must be present in the installed package."""
     import graphify
     pkg = Path(graphify.__file__).parent
-    for name in ("skill.md", "skill-codex.md", "skill-opencode.md", "skill-claw.md"):
+    for name in ("skill.md", "skill-codex.md", "skill-opencode.md", "skill-claw.md", "skill-windows.md", "skill-droid.md", "skill-trae.md"):
         assert (pkg / name).exists(), f"Missing: {name}"
 
 

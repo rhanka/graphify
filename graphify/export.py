@@ -183,9 +183,28 @@ function focusNode(nodeId) {{
   showInfo(nodeId);
 }}
 
+// Track hovered node — hover detection is more reliable than click params
+let hoveredNodeId = null;
+network.on('hoverNode', params => {{
+  hoveredNodeId = params.node;
+  container.style.cursor = 'pointer';
+}});
+network.on('blurNode', () => {{
+  hoveredNodeId = null;
+  container.style.cursor = 'default';
+}});
+container.addEventListener('click', () => {{
+  if (hoveredNodeId !== null) {{
+    showInfo(hoveredNodeId);
+    network.selectNodes([hoveredNodeId]);
+  }}
+}});
 network.on('click', params => {{
-  if (params.nodes.length > 0) showInfo(params.nodes[0]);
-  else document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  if (params.nodes.length > 0) {{
+    showInfo(params.nodes[0]);
+  }} else if (hoveredNodeId === null) {{
+    document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  }}
 }});
 
 const searchInput = document.getElementById('search');

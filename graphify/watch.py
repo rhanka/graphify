@@ -5,17 +5,10 @@ import time
 from pathlib import Path
 
 
-_WATCHED_EXTENSIONS = {
-    ".py", ".ts", ".js", ".go", ".rs", ".java", ".cpp", ".c", ".rb", ".swift", ".kt",
-    ".cs", ".scala", ".php", ".cc", ".cxx", ".hpp", ".h", ".kts",
-    ".md", ".txt", ".rst", ".pdf",
-    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
-}
+from graphify.detect import CODE_EXTENSIONS, DOC_EXTENSIONS, PAPER_EXTENSIONS, IMAGE_EXTENSIONS
 
-_CODE_EXTENSIONS = {
-    ".py", ".ts", ".js", ".go", ".rs", ".java", ".cpp", ".c", ".rb", ".swift", ".kt",
-    ".cs", ".scala", ".php", ".cc", ".cxx", ".hpp", ".h", ".kts",
-}
+_WATCHED_EXTENSIONS = CODE_EXTENSIONS | DOC_EXTENSIONS | PAPER_EXTENSIONS | IMAGE_EXTENSIONS
+_CODE_EXTENSIONS = CODE_EXTENSIONS
 
 
 def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
