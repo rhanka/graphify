@@ -170,7 +170,7 @@ _CODEX_HOOK = {
                         "type": "command",
                         "command": (
                             "[ -f graphify-out/graph.json ] && "
-                            r"""echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"graphify: Knowledge graph exists. Read graphify-out/GRAPH_REPORT.md for god nodes and community structure before searching raw files."}}' """
+                            r"""echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","systemMessage":"graphify: Knowledge graph exists. Read graphify-out/GRAPH_REPORT.md for god nodes and community structure before searching raw files."}}' """
                             "|| true"
                         ),
                     }
@@ -388,6 +388,12 @@ def main() -> None:
         print("    --dfs                   use depth-first instead of breadth-first")
         print("    --budget N              cap output at N tokens (default 2000)")
         print("    --graph <path>          path to graph.json (default graphify-out/graph.json)")
+        print("  save-result             save a Q&A result to graphify-out/memory/ for graph feedback loop")
+        print("    --question Q            the question asked")
+        print("    --answer A              the answer to save")
+        print("    --type T                query type: query|path_query|explain (default: query)")
+        print("    --nodes N1 N2 ...       source node labels cited in the answer")
+        print("    --memory-dir DIR        memory directory (default: graphify-out/memory)")
         print("  benchmark [graph.json]  measure token reduction vs naive full-corpus approach")
         print("  hook install            install post-commit/post-checkout git hooks (all platforms)")
         print("  hook uninstall          remove git hooks")
@@ -518,6 +524,25 @@ def main() -> None:
         start = [nid for _, nid in scored[:5]]
         nodes, edges = (_dfs if use_dfs else _bfs)(G, start, depth=2)
         print(_subgraph_to_text(G, nodes, edges, token_budget=budget))
+    elif cmd == "save-result":
+        # graphify save-result --question Q --answer A --type T [--nodes N1 N2 ...]
+        import argparse as _ap
+        p = _ap.ArgumentParser(prog="graphify save-result")
+        p.add_argument("--question", required=True)
+        p.add_argument("--answer", required=True)
+        p.add_argument("--type", dest="query_type", default="query")
+        p.add_argument("--nodes", nargs="*", default=[])
+        p.add_argument("--memory-dir", default="graphify-out/memory")
+        opts = p.parse_args(sys.argv[2:])
+        from graphify.ingest import save_query_result as _sqr
+        out = _sqr(
+            question=opts.question,
+            answer=opts.answer,
+            memory_dir=Path(opts.memory_dir),
+            query_type=opts.query_type,
+            source_nodes=opts.nodes or None,
+        )
+        print(f"Saved to {out}")
     elif cmd == "benchmark":
         from graphify.benchmark import run_benchmark, print_benchmark
         graph_path = sys.argv[2] if len(sys.argv) > 2 else "graphify-out/graph.json"

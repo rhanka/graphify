@@ -946,18 +946,7 @@ Replace `QUESTION` with the user's actual question, `MODE` with `bfs` or `dfs`, 
 After writing the answer, save it back into the graph so it improves future queries:
 
 ```bash
-$(cat .graphify_python) -c "
-from graphify.ingest import save_query_result
-from pathlib import Path
-save_query_result(
-    question='QUESTION',
-    answer='ANSWER',
-    memory_dir=Path('graphify-out/memory'),
-    query_type='query',
-    source_nodes=SOURCE_NODES,  # list of node labels cited, or []
-)
-print('Query result saved to graphify-out/memory/')
-"
+$(cat .graphify_python) -m graphify save-result --question "QUESTION" --answer "ANSWER" --type query --nodes NODE1 NODE2
 ```
 
 Replace `QUESTION` with the question, `ANSWER` with your full answer text, `SOURCE_NODES` with the list of node labels you cited. This closes the feedback loop: the next `--update` will extract this Q&A as a node in the graph.
@@ -1032,18 +1021,7 @@ Replace `NODE_A` and `NODE_B` with the actual concept names from the user. Then 
 After writing the explanation, save it back:
 
 ```bash
-$(cat .graphify_python) -c "
-from graphify.ingest import save_query_result
-from pathlib import Path
-save_query_result(
-    question='Path from NODE_A to NODE_B',
-    answer='ANSWER',
-    memory_dir=Path('graphify-out/memory'),
-    query_type='path_query',
-    source_nodes=PATH_NODES,  # list of node labels on the path
-)
-print('Path result saved to graphify-out/memory/')
-"
+$(cat .graphify_python) -m graphify save-result --question "Path from NODE_A to NODE_B" --answer "ANSWER" --type path_query --nodes NODE_A NODE_B
 ```
 
 ---
@@ -1109,18 +1087,7 @@ Replace `NODE_NAME` with the concept the user asked about. Then write a 3-5 sent
 After writing the explanation, save it back:
 
 ```bash
-$(cat .graphify_python) -c "
-from graphify.ingest import save_query_result
-from pathlib import Path
-save_query_result(
-    question='Explain NODE_NAME',
-    answer='ANSWER',
-    memory_dir=Path('graphify-out/memory'),
-    query_type='explain',
-    source_nodes=['NODE_NAME'],
-)
-print('Explanation saved to graphify-out/memory/')
-"
+$(cat .graphify_python) -m graphify save-result --question "Explain NODE_NAME" --answer "ANSWER" --type explain --nodes NODE_NAME
 ```
 
 ---
