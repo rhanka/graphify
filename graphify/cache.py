@@ -7,11 +7,27 @@ import os
 from pathlib import Path
 
 
+def _body_content(content: bytes) -> bytes:
+    """Strip YAML frontmatter from Markdown content, returning only the body."""
+    text = content.decode(errors="replace")
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            return text[end + 4:].encode()
+    return content
+
+
 def file_hash(path: Path) -> str:
-    """SHA256 of file contents + resolved path. Prevents cache collisions on identical content."""
+    """SHA256 of file contents + resolved path. Prevents cache collisions on identical content.
+
+    For Markdown files (.md), only the body below the YAML frontmatter is hashed,
+    so metadata-only changes (e.g. reviewed, status, tags) do not invalidate the cache.
+    """
     p = Path(path)
+    raw = p.read_bytes()
+    content = _body_content(raw) if p.suffix.lower() == ".md" else raw
     h = hashlib.sha256()
-    h.update(p.read_bytes())
+    h.update(content)
     h.update(b"\x00")
     h.update(str(p.resolve()).encode())
     return h.hexdigest()

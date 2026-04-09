@@ -250,21 +250,34 @@ def _is_noise_dir(part: str) -> bool:
 
 
 def _load_graphifyignore(root: Path) -> list[str]:
-    """Read .graphifyignore from root and return a list of patterns.
+    """Read .graphifyignore from root **and ancestor directories**, returning patterns.
+
+    Walks upward from *root* towards the filesystem root, collecting patterns
+    from every ``.graphifyignore`` encountered (like ``.gitignore`` discovery).
+    The search stops at the filesystem root or at a ``.git`` directory boundary
+    so it doesn't leak outside the repository.
 
     Lines starting with # are comments. Blank lines are ignored.
     Patterns follow gitignore semantics: glob matched against the path
     relative to root. A leading slash anchors to root. A trailing slash
     matches directories only (we match both dir and file for simplicity).
     """
-    ignore_file = root / ".graphifyignore"
-    if not ignore_file.exists():
-        return []
-    patterns = []
-    for line in ignore_file.read_text(errors="ignore").splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            patterns.append(line)
+    patterns: list[str] = []
+    current = root.resolve()
+    while True:
+        ignore_file = current / ".graphifyignore"
+        if ignore_file.exists():
+            for line in ignore_file.read_text(errors="ignore").splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    patterns.append(line)
+        # Stop climbing once we've processed the git repo root
+        if (current / ".git").exists():
+            break
+        parent = current.parent
+        if parent == current:
+            break  # filesystem root
+        current = parent
     return patterns
 
 
