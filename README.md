@@ -285,7 +285,7 @@ graphify is the graph layer. We are building [Penpax](https://safishamsi.github.
 
 ## Star history
 
-[![Star History Chart](https://starchart.cc/safishamsi/graphify.svg)](https://starchart.cc/safishamsi/graphify)
+[![Star History Chart](https://api.star-history.com/svg?repos=safishamsi/graphify&type=Date)](https://star-history.com/#safishamsi/graphify&Date)
 
 <details>
 <summary>Contributing</summary>
