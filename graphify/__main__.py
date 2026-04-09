@@ -62,6 +62,16 @@ _PLATFORM_CONFIG: dict[str, dict] = {
         "skill_dst": Path(".config") / "opencode" / "skills" / "graphify" / "SKILL.md",
         "claude_md": False,
     },
+    "aider": {
+        "skill_file": "skill-aider.md",
+        "skill_dst": Path(".aider") / "graphify" / "SKILL.md",
+        "claude_md": False,
+    },
+    "copilot": {
+        "skill_file": "skill-copilot.md",
+        "skill_dst": Path(".copilot") / "skills" / "graphify" / "SKILL.md",
+        "claude_md": False,
+    },
     "claw": {
         "skill_file": "skill-claw.md",
         "skill_dst": Path(".claw") / "skills" / "graphify" / "SKILL.md",
@@ -91,9 +101,15 @@ _PLATFORM_CONFIG: dict[str, dict] = {
 
 
 def install(platform: str = "claude") -> None:
+    if platform == "gemini":
+        gemini_install()
+        return
+    if platform == "cursor":
+        _cursor_install()
+        return
     if platform not in _PLATFORM_CONFIG:
         print(
-            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}",
+            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}, gemini, cursor",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -608,7 +624,7 @@ def main() -> None:
         print("Usage: graphify <command>")
         print()
         print("Commands:")
-        print("  install [--platform P]  copy skill to platform config dir (claude|windows|codex|opencode|claw|droid|trae|trae-cn)")
+        print("  install [--platform P]  copy skill to platform config dir (claude|windows|codex|opencode|aider|claw|droid|trae|trae-cn|gemini|cursor)")
         print("  query \"<question>\"       BFS traversal of graph.json for a question")
         print("    --dfs                   use depth-first instead of breadth-first")
         print("    --budget N              cap output at N tokens (default 2000)")
@@ -633,6 +649,10 @@ def main() -> None:
         print("  codex uninstall         remove graphify section from AGENTS.md")
         print("  opencode install        write graphify section to AGENTS.md + tool.execute.before plugin (OpenCode)")
         print("  opencode uninstall      remove graphify section from AGENTS.md + plugin")
+        print("  aider install           write graphify section to AGENTS.md (Aider)")
+        print("  aider uninstall         remove graphify section from AGENTS.md")
+        print("  copilot install         copy graphify skill to ~/.copilot/skills (GitHub Copilot CLI)")
+        print("  copilot uninstall       remove graphify skill from ~/.copilot/skills")
         print("  claw install            write graphify section to AGENTS.md (OpenClaw)")
         print("  claw uninstall          remove graphify section from AGENTS.md")
         print("  droid install           write graphify section to AGENTS.md (Factory Droid)")
@@ -688,7 +708,29 @@ def main() -> None:
         else:
             print("Usage: graphify cursor [install|uninstall]", file=sys.stderr)
             sys.exit(1)
-    elif cmd in ("codex", "opencode", "claw", "droid", "trae", "trae-cn"):
+    elif cmd == "copilot":
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            install(platform="copilot")
+        elif subcmd == "uninstall":
+            skill_dst = Path.home() / _PLATFORM_CONFIG["copilot"]["skill_dst"]
+            removed = []
+            if skill_dst.exists():
+                skill_dst.unlink()
+                removed.append(f"skill removed: {skill_dst}")
+            version_file = skill_dst.parent / ".graphify_version"
+            if version_file.exists():
+                version_file.unlink()
+            for d in (skill_dst.parent, skill_dst.parent.parent, skill_dst.parent.parent.parent):
+                try:
+                    d.rmdir()
+                except OSError:
+                    break
+            print("; ".join(removed) if removed else "nothing to remove")
+        else:
+            print("Usage: graphify copilot [install|uninstall]", file=sys.stderr)
+            sys.exit(1)
+    elif cmd in ("aider", "codex", "opencode", "claw", "droid", "trae", "trae-cn"):
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
         if subcmd == "install":
             _agents_install(Path("."), cmd)

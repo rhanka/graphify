@@ -10,7 +10,7 @@ from graphify.security import validate_graph_path, sanitize_label
 
 def _load_graph(graph_path: str) -> nx.Graph:
     try:
-        safe = validate_graph_path(graph_path)
+        safe = validate_graph_path(graph_path, base=Path(graph_path).resolve().parent)
         data = json.loads(safe.read_text())
         try:
             return json_graph.node_link_graph(data, edges="links")
@@ -309,7 +309,10 @@ def serve(graph_path: str = "graphify-out/graph.json") -> None:
         handler = _handlers.get(name)
         if not handler:
             return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
-        return [types.TextContent(type="text", text=handler(arguments))]
+        try:
+            return [types.TextContent(type="text", text=handler(arguments))]
+        except Exception as exc:
+            return [types.TextContent(type="text", text=f"Error executing {name}: {exc}")]
 
     import asyncio
 
