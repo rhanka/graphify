@@ -24,19 +24,16 @@ def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
     Returns True on success, False on error.
     """
     try:
-        from graphify.extract import collect_files, extract
+        from graphify.extract import extract
+        from graphify.detect import detect, FileType
         from graphify.build import build_from_json
         from graphify.cluster import cluster, score_all
         from graphify.analyze import god_nodes, surprising_connections, suggest_questions
         from graphify.report import generate
         from graphify.export import to_json
 
-        code_files = collect_files(watch_path, follow_symlinks=follow_symlinks)
-        code_files = [
-            f for f in code_files
-            if "graphify-out" not in f.parts
-            and "__pycache__" not in f.parts
-        ]
+        detected = detect(watch_path, follow_symlinks=follow_symlinks)
+        code_files = [Path(f) for f in detected[FileType.CODE]]
 
         if not code_files:
             print("[graphify watch] No code files found - nothing to rebuild.")
@@ -47,7 +44,7 @@ def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
         detection = {
             "files": {"code": [str(f) for f in code_files], "document": [], "paper": [], "image": []},
             "total_files": len(code_files),
-            "total_words": 0,  # not needed during watch rebuild
+            "total_words": detected.get("total_words", 0),
         }
 
         G = build_from_json(result)
