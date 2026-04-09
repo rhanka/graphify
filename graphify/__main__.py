@@ -160,6 +160,108 @@ Rules:
 
 _AGENTS_MD_MARKER = "## graphify"
 
+_GEMINI_MD_SECTION = """\
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+"""
+
+_GEMINI_MD_MARKER = "## graphify"
+
+_GEMINI_HOOK = {
+    "matcher": "read_file|list_directory",
+    "hooks": [
+        {
+            "type": "command",
+            "command": (
+                "[ -f graphify-out/graph.json ] && "
+                r"""echo '{"decision":"allow","additionalContext":"graphify: Knowledge graph exists. Read graphify-out/GRAPH_REPORT.md for god nodes and community structure before searching raw files."}' """
+                r"""|| echo '{"decision":"allow"}'"""
+            ),
+        }
+    ],
+}
+
+
+def gemini_install(project_dir: Path | None = None) -> None:
+    """Write the graphify section to GEMINI.md and install BeforeTool hook."""
+    target = (project_dir or Path(".")) / "GEMINI.md"
+
+    if target.exists():
+        content = target.read_text(encoding="utf-8")
+        if _GEMINI_MD_MARKER in content:
+            print("graphify already configured in GEMINI.md")
+        else:
+            target.write_text(content.rstrip() + "\n\n" + _GEMINI_MD_SECTION, encoding="utf-8")
+            print(f"graphify section written to {target.resolve()}")
+    else:
+        target.write_text(_GEMINI_MD_SECTION, encoding="utf-8")
+        print(f"graphify section written to {target.resolve()}")
+
+    _install_gemini_hook(project_dir or Path("."))
+    print()
+    print("Gemini CLI will now check the knowledge graph before answering")
+    print("codebase questions and rebuild it after code changes.")
+
+
+def _install_gemini_hook(project_dir: Path) -> None:
+    settings_path = project_dir / ".gemini" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        settings = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
+    except json.JSONDecodeError:
+        settings = {}
+    before_tool = settings.setdefault("hooks", {}).setdefault("BeforeTool", [])
+    if any("graphify" in str(h) for h in before_tool):
+        print("  .gemini/settings.json  ->  hook already registered (no change)")
+        return
+    before_tool.append(_GEMINI_HOOK)
+    settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    print("  .gemini/settings.json  ->  BeforeTool hook registered")
+
+
+def _uninstall_gemini_hook(project_dir: Path) -> None:
+    settings_path = project_dir / ".gemini" / "settings.json"
+    if not settings_path.exists():
+        return
+    try:
+        settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    before_tool = settings.get("hooks", {}).get("BeforeTool", [])
+    filtered = [h for h in before_tool if "graphify" not in str(h)]
+    if len(filtered) == len(before_tool):
+        return
+    settings["hooks"]["BeforeTool"] = filtered
+    settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    print("  .gemini/settings.json  ->  BeforeTool hook removed")
+
+
+def gemini_uninstall(project_dir: Path | None = None) -> None:
+    """Remove the graphify section from GEMINI.md and uninstall hook."""
+    target = (project_dir or Path(".")) / "GEMINI.md"
+    if not target.exists():
+        print("No GEMINI.md found in current directory - nothing to do")
+        return
+    content = target.read_text(encoding="utf-8")
+    if _GEMINI_MD_MARKER not in content:
+        print("graphify section not found in GEMINI.md - nothing to do")
+        return
+    cleaned = re.sub(r"\n*## graphify\n.*?(?=\n## |\Z)", "", content, flags=re.DOTALL).rstrip()
+    if cleaned:
+        target.write_text(cleaned + "\n", encoding="utf-8")
+        print(f"graphify section removed from {target.resolve()}")
+    else:
+        target.unlink()
+        print(f"GEMINI.md was empty after removal - deleted {target.resolve()}")
+    _uninstall_gemini_hook(project_dir or Path("."))
+
+
 _CURSOR_RULE_PATH = Path(".cursor") / "rules" / "graphify.mdc"
 _CURSOR_RULE = """\
 ---
@@ -522,6 +624,8 @@ def main() -> None:
         print("  hook install            install post-commit/post-checkout git hooks (all platforms)")
         print("  hook uninstall          remove git hooks")
         print("  hook status             check if git hooks are installed")
+        print("  gemini install          write GEMINI.md section + BeforeTool hook (Gemini CLI)")
+        print("  gemini uninstall        remove GEMINI.md section + BeforeTool hook")
         print("  cursor install          write .cursor/rules/graphify.mdc (Cursor)")
         print("  cursor uninstall        remove .cursor/rules/graphify.mdc")
         print("  claude install          write graphify section to CLAUDE.md + PreToolUse hook (Claude Code)")
@@ -566,6 +670,15 @@ def main() -> None:
             claude_uninstall()
         else:
             print("Usage: graphify claude [install|uninstall]", file=sys.stderr)
+            sys.exit(1)
+    elif cmd == "gemini":
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            gemini_install()
+        elif subcmd == "uninstall":
+            gemini_uninstall()
+        else:
+            print("Usage: graphify gemini [install|uninstall]", file=sys.stderr)
             sys.exit(1)
     elif cmd == "cursor":
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
