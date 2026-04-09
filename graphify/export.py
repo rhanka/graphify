@@ -110,6 +110,11 @@ const RAW_NODES = {nodes_json};
 const RAW_EDGES = {edges_json};
 const LEGEND = {legend_json};
 
+// HTML-escape helper — prevents XSS when injecting graph data into innerHTML
+function esc(s) {{
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}}
+
 // Build vis datasets
 const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({{
   id: n.id, label: n.label, color: n.color, size: n.size,
@@ -165,13 +170,13 @@ function showInfo(nodeId) {{
   const neighborItems = neighborIds.map(nid => {{
     const nb = nodesDS.get(nid);
     const color = nb ? nb.color.background : '#555';
-    return `<span class="neighbor-link" style="border-left-color:${{color}}" onclick="focusNode('${{nid}}')">${{nb ? nb.label : nid}}</span>`;
+    return `<span class="neighbor-link" style="border-left-color:${{esc(color)}}" onclick="focusNode(${{JSON.stringify(nid)}})">${{esc(nb ? nb.label : nid)}}</span>`;
   }}).join('');
   document.getElementById('info-content').innerHTML = `
-    <div class="field"><b>${{n.label}}</b></div>
-    <div class="field">Type: ${{n._file_type || 'unknown'}}</div>
-    <div class="field">Community: ${{n._community_name}}</div>
-    <div class="field">Source: ${{n._source_file || '-'}}</div>
+    <div class="field"><b>${{esc(n.label)}}</b></div>
+    <div class="field">Type: ${{esc(n._file_type || 'unknown')}}</div>
+    <div class="field">Community: ${{esc(n._community_name)}}</div>
+    <div class="field">Source: ${{esc(n._source_file || '-')}}</div>
     <div class="field">Degree: ${{n._degree}}</div>
     ${{neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${{neighborIds.length}})</div><div id="neighbors-list">${{neighborItems}}</div>` : ''}}
   `;
@@ -356,7 +361,7 @@ def to_html(
             "color": {"background": color, "border": color, "highlight": {"background": "#ffffff", "border": color}},
             "size": round(size, 1),
             "font": {"size": font_size, "color": "#ffffff"},
-            "title": f"{label}",
+            "title": _html.escape(label),
             "community": cid,
             "community_name": sanitize_label((community_labels or {}).get(cid, f"Community {cid}")),
             "source_file": sanitize_label(data.get("source_file", "")),
@@ -373,7 +378,7 @@ def to_html(
             "from": u,
             "to": v,
             "label": relation,
-            "title": f"{relation} [{confidence}]",
+            "title": _html.escape(f"{relation} [{confidence}]"),
             "dashes": confidence != "EXTRACTED",
             "width": 2 if confidence == "EXTRACTED" else 1,
             "color": {"opacity": 0.7 if confidence == "EXTRACTED" else 0.35},
