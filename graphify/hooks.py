@@ -124,7 +124,7 @@ def _install_hook(hooks_dir: Path, name: str, script: str, marker: str) -> str:
             return f"already installed at {hook_path}"
         hook_path.write_text(content.rstrip() + "\n\n" + script)
         return f"appended to existing {name} hook at {hook_path}"
-    hook_path.write_text("#!/bin/bash\n" + script)
+    hook_path.write_text("#!/bin/sh\n" + script)
     hook_path.chmod(0o755)
     return f"installed at {hook_path}"
 
@@ -143,7 +143,7 @@ def _uninstall_hook(hooks_dir: Path, name: str, marker: str, marker_end: str) ->
         content,
         flags=re.DOTALL,
     ).strip()
-    if not new_content or new_content == "#!/bin/bash":
+    if not new_content or new_content in ("#!/bin/bash", "#!/bin/sh"):
         hook_path.unlink()
         return f"removed {name} hook at {hook_path}"
     hook_path.write_text(new_content + "\n")
