@@ -2668,7 +2668,7 @@ def extract(paths: list[Path]) -> dict:
     }
 
 
-def collect_files(target: Path, *, follow_symlinks: bool = False) -> list[Path]:
+def collect_files(target: Path, *, follow_symlinks: bool = False, root: Path | None = None) -> list[Path]:
     if target.is_file():
         return [target]
     _EXTENSIONS = {
@@ -2678,12 +2678,20 @@ def collect_files(target: Path, *, follow_symlinks: bool = False) -> list[Path]:
         ".lua", ".toc", ".zig", ".ps1",
         ".m", ".mm",
     }
+    from graphify.detect import _load_graphifyignore, _is_ignored
+    ignore_root = root if root is not None else target
+    patterns = _load_graphifyignore(ignore_root)
+
+    def _ignored(p: Path) -> bool:
+        return bool(patterns and _is_ignored(p, ignore_root, patterns))
+
     if not follow_symlinks:
         results: list[Path] = []
         for ext in sorted(_EXTENSIONS):
             results.extend(
                 p for p in target.rglob(f"*{ext}")
                 if not any(part.startswith(".") for part in p.parts)
+                and not _ignored(p)
             )
         return sorted(results)
     # Walk with symlink following + cycle detection
@@ -2701,7 +2709,7 @@ def collect_files(target: Path, *, follow_symlinks: bool = False) -> list[Path]:
             continue
         for fname in filenames:
             p = dp / fname
-            if p.suffix in _EXTENSIONS and not fname.startswith("."):
+            if p.suffix in _EXTENSIONS and not fname.startswith(".") and not _ignored(p):
                 results.append(p)
     return sorted(results)
 
