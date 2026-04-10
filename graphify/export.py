@@ -396,10 +396,14 @@ def to_html(
         n = len(communities.get(cid, []))
         legend_data.append({"cid": cid, "color": color, "label": lbl, "count": n})
 
-    nodes_json = json.dumps(vis_nodes)
-    edges_json = json.dumps(vis_edges)
-    legend_json = json.dumps(legend_data)
-    hyperedges_json = json.dumps(getattr(G, "graph", {}).get("hyperedges", []))
+    # Escape </script> sequences so embedded JSON cannot break out of the script tag
+    def _js_safe(obj) -> str:
+        return json.dumps(obj).replace("</", "<\\/")
+
+    nodes_json = _js_safe(vis_nodes)
+    edges_json = _js_safe(vis_edges)
+    legend_json = _js_safe(legend_data)
+    hyperedges_json = _js_safe(getattr(G, "graph", {}).get("hyperedges", []))
     title = _html.escape(sanitize_label(str(output_path)))
     stats = f"{G.number_of_nodes()} nodes &middot; {G.number_of_edges()} edges &middot; {len(communities)} communities"
 

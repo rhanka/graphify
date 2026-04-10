@@ -82,11 +82,11 @@ def _fetch_tweet(url: str, author: str | None, contributor: str | None) -> tuple
 
     now = datetime.now(timezone.utc).isoformat()
     content = f"""---
-source_url: {url}
+source_url: "{_yaml_str(url)}"
 type: tweet
-author: {tweet_author}
+author: "{_yaml_str(tweet_author)}"
 captured_at: {now}
-contributor: {contributor or author or 'unknown'}
+contributor: "{_yaml_str(contributor or author or 'unknown')}"
 ---
 
 # Tweet by @{tweet_author}
@@ -109,11 +109,11 @@ def _fetch_webpage(url: str, author: str | None, contributor: str | None) -> tup
     markdown = _html_to_markdown(html, url)
     now = datetime.now(timezone.utc).isoformat()
     content = f"""---
-source_url: {url}
+source_url: "{_yaml_str(url)}"
 type: webpage
 title: "{_yaml_str(title)}"
 captured_at: {now}
-contributor: {contributor or author or 'unknown'}
+contributor: "{_yaml_str(contributor or author or 'unknown')}"
 ---
 
 # {title}
@@ -149,13 +149,13 @@ def _fetch_arxiv(url: str, author: str | None, contributor: str | None) -> tuple
 
     now = datetime.now(timezone.utc).isoformat()
     content = f"""---
-source_url: {url}
-arxiv_id: {arxiv_id.group(1) if arxiv_id else ''}
+source_url: "{_yaml_str(url)}"
+arxiv_id: "{_yaml_str(arxiv_id.group(1) if arxiv_id else '')}"
 type: paper
-title: "{title}"
-paper_authors: "{paper_authors}"
+title: "{_yaml_str(title)}"
+paper_authors: "{_yaml_str(paper_authors)}"
 captured_at: {now}
-contributor: {contributor or author or 'unknown'}
+contributor: "{_yaml_str(contributor or author or 'unknown')}"
 ---
 
 # {title}
@@ -225,7 +225,7 @@ def ingest(url: str, target_dir: Path, author: str | None = None, contributor: s
     out_path = target_dir / filename
     # Avoid overwriting - append counter if needed
     counter = 1
-    while out_path.exists():
+    while out_path.exists() and counter < 1000:
         stem = Path(filename).stem
         out_path = target_dir / f"{stem}_{counter}.md"
         counter += 1
