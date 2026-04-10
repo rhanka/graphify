@@ -205,7 +205,15 @@ _GEMINI_HOOK = {
 
 
 def gemini_install(project_dir: Path | None = None) -> None:
-    """Write the graphify section to GEMINI.md and install BeforeTool hook."""
+    """Copy skill file to ~/.gemini/skills/graphify/, write GEMINI.md section, and install BeforeTool hook."""
+    # Copy skill file to ~/.gemini/skills/graphify/SKILL.md
+    skill_src = Path(__file__).parent / "skill.md"
+    skill_dst = Path.home() / ".gemini" / "skills" / "graphify" / "SKILL.md"
+    skill_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(skill_src, skill_dst)
+    (skill_dst.parent / ".graphify_version").write_text(__version__, encoding="utf-8")
+    print(f"  skill installed  ->  {skill_dst}")
+
     target = (project_dir or Path(".")) / "GEMINI.md"
 
     if target.exists():
@@ -259,7 +267,21 @@ def _uninstall_gemini_hook(project_dir: Path) -> None:
 
 
 def gemini_uninstall(project_dir: Path | None = None) -> None:
-    """Remove the graphify section from GEMINI.md and uninstall hook."""
+    """Remove the graphify section from GEMINI.md, uninstall hook, and remove skill file."""
+    # Remove skill file
+    skill_dst = Path.home() / ".gemini" / "skills" / "graphify" / "SKILL.md"
+    if skill_dst.exists():
+        skill_dst.unlink()
+        print(f"  skill removed    ->  {skill_dst}")
+    version_file = skill_dst.parent / ".graphify_version"
+    if version_file.exists():
+        version_file.unlink()
+    for d in (skill_dst.parent, skill_dst.parent.parent):
+        try:
+            d.rmdir()
+        except OSError:
+            break
+
     target = (project_dir or Path(".")) / "GEMINI.md"
     if not target.exists():
         print("No GEMINI.md found in current directory - nothing to do")
