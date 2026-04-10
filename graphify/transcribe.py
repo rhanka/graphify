@@ -91,14 +91,14 @@ def download_audio(url: str, output_dir: Path) -> Path:
 def build_whisper_prompt(god_nodes: list[dict]) -> str:
     """Build a domain hint for Whisper from god nodes extracted from the corpus.
 
-    Takes the top god nodes (most connected concepts) already extracted from
-    non-video files and asks the LLM to summarise them into a one-sentence
-    speech-to-text hint. Falls back to a generic prompt if no nodes available.
+    Formats the top god node labels into a topic string for Whisper.
+    The coding agent (Claude Code, Codex, etc.) generates the actual one-sentence
+    domain hint from these labels and passes it via GRAPHIFY_WHISPER_PROMPT or
+    as initial_prompt — no separate API call needed here.
     """
     if not god_nodes:
         return _FALLBACK_PROMPT
 
-    # Use env override if set
     override = os.environ.get("GRAPHIFY_WHISPER_PROMPT")
     if override:
         return override
@@ -107,28 +107,8 @@ def build_whisper_prompt(god_nodes: list[dict]) -> str:
     if not labels:
         return _FALLBACK_PROMPT
 
-    try:
-        import anthropic
-        client = anthropic.Anthropic()
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=60,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"These are the key concepts from a document corpus: {', '.join(labels)}. "
-                    "Write a single short sentence (under 20 words) that describes the domain "
-                    "for a speech-to-text model. Start with 'Technical' or the domain name. "
-                    "No explanation, just the sentence."
-                ),
-            }],
-        )
-        prompt = msg.content[0].text.strip().strip('"')
-        return prompt + " Use proper punctuation and paragraph breaks."
-    except Exception:
-        # If LLM call fails for any reason, fall back gracefully
-        topics = ", ".join(labels[:5])
-        return f"Technical discussion about {topics}. Use proper punctuation and paragraph breaks."
+    topics = ", ".join(labels[:5])
+    return f"Technical discussion about {topics}. Use proper punctuation and paragraph breaks."
 
 
 def transcribe(
