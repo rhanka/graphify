@@ -241,10 +241,8 @@ def _install_gemini_hook(project_dir: Path) -> None:
     except json.JSONDecodeError:
         settings = {}
     before_tool = settings.setdefault("hooks", {}).setdefault("BeforeTool", [])
-    if any("graphify" in str(h) for h in before_tool):
-        print("  .gemini/settings.json  ->  hook already registered (no change)")
-        return
-    before_tool.append(_GEMINI_HOOK)
+    settings["hooks"]["BeforeTool"] = [h for h in before_tool if "graphify" not in str(h)]
+    settings["hooks"]["BeforeTool"].append(_GEMINI_HOOK)
     settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     print("  .gemini/settings.json  ->  BeforeTool hook registered")
 
@@ -455,11 +453,8 @@ def _install_codex_hook(project_dir: Path) -> None:
         existing = {}
 
     pre_tool = existing.setdefault("hooks", {}).setdefault("PreToolUse", [])
-    if any("graphify" in str(h) for h in pre_tool):
-        print(f"  .codex/hooks.json  ->  hook already registered (no change)")
-        return
-
-    pre_tool.extend(_CODEX_HOOK["hooks"]["PreToolUse"])
+    existing["hooks"]["PreToolUse"] = [h for h in pre_tool if "graphify" not in str(h)]
+    existing["hooks"]["PreToolUse"].extend(_CODEX_HOOK["hooks"]["PreToolUse"])
     hooks_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
     print(f"  .codex/hooks.json  ->  PreToolUse hook registered")
 
@@ -578,12 +573,8 @@ def _install_claude_hook(project_dir: Path) -> None:
     hooks = settings.setdefault("hooks", {})
     pre_tool = hooks.setdefault("PreToolUse", [])
 
-    # Check if already installed
-    if any(h.get("matcher") == "Glob|Grep" and "graphify" in str(h) for h in pre_tool):
-        print(f"  .claude/settings.json  ->  hook already registered (no change)")
-        return
-
-    pre_tool.append(_SETTINGS_HOOK)
+    hooks["PreToolUse"] = [h for h in pre_tool if not (h.get("matcher") == "Glob|Grep" and "graphify" in str(h))]
+    hooks["PreToolUse"].append(_SETTINGS_HOOK)
     settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     print(f"  .claude/settings.json  ->  PreToolUse hook registered")
 
