@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import sys
+
 import pytest
 
 from graphify.transcribe import (
@@ -52,10 +54,12 @@ def test_build_whisper_prompt_llm_success():
     fake_response = MagicMock()
     fake_response.content = [MagicMock(text="Machine learning and deep learning research")]
 
+    mock_anthropic = MagicMock()
+    mock_anthropic.Anthropic.return_value.messages.create.return_value = fake_response
+
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("GRAPHIFY_WHISPER_PROMPT", None)
-        with patch("anthropic.Anthropic") as MockClient:
-            MockClient.return_value.messages.create.return_value = fake_response
+        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
             prompt = build_whisper_prompt(god_nodes)
 
     assert "Machine learning" in prompt
@@ -66,9 +70,12 @@ def test_build_whisper_prompt_llm_failure_fallback():
     """If LLM call raises, falls back to topic-based prompt."""
     god_nodes = [{"label": "kubernetes"}, {"label": "docker"}, {"label": "helm"}]
 
+    mock_anthropic = MagicMock()
+    mock_anthropic.Anthropic.return_value.messages.create.side_effect = Exception("API error")
+
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("GRAPHIFY_WHISPER_PROMPT", None)
-        with patch("anthropic.Anthropic", side_effect=Exception("API error")):
+        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
             prompt = build_whisper_prompt(god_nodes)
 
     assert "kubernetes" in prompt.lower() or "docker" in prompt.lower()
