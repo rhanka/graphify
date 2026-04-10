@@ -193,7 +193,7 @@ When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` 
 
 /graphify add https://arxiv.org/abs/1706.03762        # fetch a paper, save, update graph
 /graphify add https://x.com/karpathy/status/...       # fetch a tweet
-/graphify add https://www.youtube.com/watch?v=...     # download audio, transcribe, add to graph
+/graphify add <video-url>                              # download audio, transcribe, add to graph
 /graphify add https://... --author "Name"             # tag the original author
 /graphify add https://... --contributor "Name"        # tag who added it to the corpus
 
@@ -267,7 +267,7 @@ pip install 'graphifyy[video]'   # one-time setup
 Add a YouTube video (or any public video URL) directly:
 
 ```bash
-/graphify add https://www.youtube.com/watch?v=...
+/graphify add <video-url>
 ```
 
 yt-dlp downloads audio-only (fast, small), Whisper transcribes it locally, and the transcript is fed into the same extraction pipeline as your other docs. Transcripts are cached in `graphify-out/transcripts/` so re-runs skip already-transcribed files.
