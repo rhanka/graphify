@@ -2,6 +2,12 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.4.1 (2026-04-10)
+
+- Fix: `collect_files()` in `extract.py` now respects `.graphifyignore` — previously ignored patterns, causing thousands of unwanted files (e.g. `node_modules/`) to be scanned (#188)
+- Fix: skill.md Step B2 now explicitly requires `subagent_type="general-purpose"` — using `Explore` type silently dropped extraction results since it is read-only and cannot write chunk files (#195)
+- Fix: Step B3 now warns when chunk files are missing from disk instead of silently skipping them
+
 ## 0.4.0 (2026-04-10)
 
 - Branch: v4 — video and audio corpus support
