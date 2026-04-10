@@ -1,12 +1,9 @@
 """Tests for graphify.transcribe — video/audio transcription support."""
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import sys
 
 import pytest
 
@@ -47,38 +44,13 @@ def test_build_whisper_prompt_env_override(monkeypatch):
     assert prompt == "Custom domain hint."
 
 
-def test_build_whisper_prompt_llm_success():
-    """Successful LLM call returns generated prompt with punctuation suffix."""
+def test_build_whisper_prompt_returns_topic_string():
+    """Returns a topic-based prompt from god node labels — no LLM call."""
     god_nodes = [{"label": "neural networks"}, {"label": "transformers"}, {"label": "attention"}]
-
-    fake_response = MagicMock()
-    fake_response.content = [MagicMock(text="Machine learning and deep learning research")]
-
-    mock_anthropic = MagicMock()
-    mock_anthropic.Anthropic.return_value.messages.create.return_value = fake_response
-
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("GRAPHIFY_WHISPER_PROMPT", None)
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            prompt = build_whisper_prompt(god_nodes)
-
-    assert "Machine learning" in prompt
-    assert "punctuation" in prompt.lower()
-
-
-def test_build_whisper_prompt_llm_failure_fallback():
-    """If LLM call raises, falls back to topic-based prompt."""
-    god_nodes = [{"label": "kubernetes"}, {"label": "docker"}, {"label": "helm"}]
-
-    mock_anthropic = MagicMock()
-    mock_anthropic.Anthropic.return_value.messages.create.side_effect = Exception("API error")
-
-    with patch.dict(os.environ, {}, clear=False):
-        os.environ.pop("GRAPHIFY_WHISPER_PROMPT", None)
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            prompt = build_whisper_prompt(god_nodes)
-
-    assert "kubernetes" in prompt.lower() or "docker" in prompt.lower()
+        prompt = build_whisper_prompt(god_nodes)
+    assert "neural networks" in prompt.lower() or "transformers" in prompt.lower()
     assert "punctuation" in prompt.lower()
 
 

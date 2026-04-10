@@ -114,29 +114,30 @@ Skip this step entirely if `detect` returned zero `video` files.
 
 Video and audio files cannot be read directly. Transcribe them to text first, then treat the transcripts as doc files in Step 3.
 
-**Strategy:** Run non-video semantic extraction first (Step 3B) to get god nodes, use those to build a domain hint for Whisper, then transcribe. This keeps the prompt relevant without guessing the corpus topic from filenames.
+**Strategy:** Read the god nodes from the detect output or analysis file. You are already a language model — write a one-sentence domain hint yourself from those labels. Then pass it to Whisper as the initial prompt. No separate API call needed.
 
-**However**, if the corpus has *only* video files and no other docs/code, skip the god-node step and transcribe with the generic fallback prompt immediately.
+**However**, if the corpus has *only* video files and no other docs/code, use the generic fallback prompt: `"Use proper punctuation and paragraph breaks."`
 
-**Transcription command:**
+**Step 1 - Write the Whisper prompt yourself.**
+
+Read the top god node labels from detect output or analysis, then compose a short domain hint sentence, for example:
+
+- Labels: `transformer, attention, encoder, decoder` → `"Machine learning research on transformer architectures and attention mechanisms. Use proper punctuation and paragraph breaks."`
+- Labels: `kubernetes, deployment, pod, helm` → `"DevOps discussion about Kubernetes deployments and Helm charts. Use proper punctuation and paragraph breaks."`
+
+Set it as `GRAPHIFY_WHISPER_PROMPT` in the environment before running the transcription command.
+
+**Step 2 - Transcribe:**
 
 ```bash
 $(cat graphify-out/.graphify_python) -c "
-import json
+import json, os
 from pathlib import Path
-from graphify.transcribe import build_whisper_prompt, transcribe_all
+from graphify.transcribe import transcribe_all
 
 detect = json.loads(Path('graphify-out/.graphify_detect.json').read_text())
 video_files = detect.get('files', {}).get('video', [])
-
-try:
-    analysis = json.loads(Path('graphify-out/.graphify_analysis.json').read_text())
-    god_nodes = analysis.get('god_nodes', [])
-except Exception:
-    god_nodes = []
-
-prompt = build_whisper_prompt(god_nodes)
-print(f'Whisper prompt: {prompt}')
+prompt = os.environ.get('GRAPHIFY_WHISPER_PROMPT', 'Use proper punctuation and paragraph breaks.')
 
 transcript_paths = transcribe_all(video_files, initial_prompt=prompt)
 print(json.dumps(transcript_paths))
