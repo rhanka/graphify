@@ -255,6 +255,31 @@ Works with any mix of file types:
 | Video / Audio | `.mp4 .mov .mkv .webm .avi .m4v .mp3 .wav .m4a .ogg` | Transcribed locally with faster-whisper, transcript fed into Claude extraction (requires `pip install graphifyy[video]`) |
 | YouTube / URLs | any video URL | Audio downloaded via yt-dlp, then same Whisper pipeline (requires `pip install graphifyy[video]`) |
 
+## Video and audio corpus
+
+Drop video or audio files into your corpus folder alongside your code and docs — graphify picks them up automatically:
+
+```bash
+pip install 'graphifyy[video]'   # one-time setup
+/graphify ./my-corpus            # transcribes any video/audio files it finds
+```
+
+Add a YouTube video (or any public video URL) directly:
+
+```bash
+/graphify add https://www.youtube.com/watch?v=...
+```
+
+yt-dlp downloads audio-only (fast, small), Whisper transcribes it locally, and the transcript is fed into the same extraction pipeline as your other docs. Transcripts are cached in `graphify-out/transcripts/` so re-runs skip already-transcribed files.
+
+For better accuracy on technical content, use a larger model:
+
+```bash
+/graphify ./my-corpus --whisper-model medium
+```
+
+Audio never leaves your machine. All transcription runs locally.
+
 ## What you get
 
 **God nodes** - highest-degree concepts (what everything connects through)
