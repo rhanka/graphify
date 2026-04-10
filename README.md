@@ -110,7 +110,9 @@ After building a graph, run this once in your project:
 
 **Gemini CLI** writes a `GEMINI.md` section and installs a `BeforeTool` hook in `.gemini/settings.json` that fires before file-read tool calls — same always-on mechanism as Claude Code.
 
-**OpenClaw, Factory Droid, Trae** write the same rules to `AGENTS.md` in your project root. These platforms don't support tool hooks, so AGENTS.md is the always-on mechanism.
+**Aider and OpenClaw, Factory Droid, Trae** write the same rules to `AGENTS.md` in your project root. These platforms don't support tool hooks, so AGENTS.md is the always-on mechanism.
+
+**GitHub Copilot CLI** copies the skill to `~/.copilot/skills/graphify/SKILL.md`. Run `graphify copilot install` to set it up.
 
 Uninstall with the matching uninstall command (e.g. `graphify claude uninstall`).
 
@@ -218,6 +220,14 @@ graphify claude install            # CLAUDE.md + PreToolUse hook (Claude Code)
 graphify claude uninstall
 graphify codex install             # AGENTS.md (Codex)
 graphify opencode install          # AGENTS.md + tool.execute.before plugin (OpenCode)
+graphify cursor install            # .cursor/rules/graphify.mdc (Cursor)
+graphify cursor uninstall
+graphify gemini install            # GEMINI.md + BeforeTool hook (Gemini CLI)
+graphify gemini uninstall
+graphify copilot install           # skill file (GitHub Copilot CLI)
+graphify copilot uninstall
+graphify aider install             # AGENTS.md (Aider)
+graphify aider uninstall
 graphify claw install              # AGENTS.md (OpenClaw)
 graphify droid install             # AGENTS.md (Factory Droid)
 graphify trae install              # AGENTS.md (Trae)
