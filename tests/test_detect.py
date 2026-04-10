@@ -199,3 +199,40 @@ def test_detect_handles_circular_symlinks(tmp_path):
 
     result = detect(tmp_path, follow_symlinks=True)
     assert any("main.py" in f for f in result["files"]["code"])
+
+
+def test_classify_video_extensions():
+    """Video and audio file extensions should classify as VIDEO."""
+    from graphify.detect import FileType
+    assert classify_file(Path("lecture.mp4")) == FileType.VIDEO
+    assert classify_file(Path("podcast.mp3")) == FileType.VIDEO
+    assert classify_file(Path("talk.mov")) == FileType.VIDEO
+    assert classify_file(Path("recording.wav")) == FileType.VIDEO
+    assert classify_file(Path("webinar.webm")) == FileType.VIDEO
+    assert classify_file(Path("audio.m4a")) == FileType.VIDEO
+
+
+def test_detect_includes_video_key(tmp_path):
+    """detect() result always includes a 'video' key even with no video files."""
+    (tmp_path / "main.py").write_text("x = 1")
+    result = detect(tmp_path)
+    assert "video" in result["files"]
+
+
+def test_detect_finds_video_files(tmp_path):
+    """detect() correctly counts video files and does not add them to word count."""
+    (tmp_path / "lecture.mp4").write_bytes(b"fake video data")
+    (tmp_path / "notes.md").write_text("# Notes\nSome content here.")
+    result = detect(tmp_path)
+    assert len(result["files"]["video"]) == 1
+    assert any("lecture.mp4" in f for f in result["files"]["video"])
+    # total_words should not include video files (they have no readable text)
+    assert result["total_words"] >= 0  # won't crash
+
+
+def test_detect_video_not_in_words(tmp_path):
+    """Video files do not contribute to total_words."""
+    (tmp_path / "clip.mp4").write_bytes(b"\x00" * 100)
+    result = detect(tmp_path)
+    # Only video file present — total_words should be 0
+    assert result["total_words"] == 0

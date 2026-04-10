@@ -13,6 +13,7 @@ class FileType(str, Enum):
     DOCUMENT = "document"
     PAPER = "paper"
     IMAGE = "image"
+    VIDEO = "video"
 
 
 _MANIFEST_PATH = "graphify-out/manifest.json"
@@ -22,6 +23,7 @@ DOC_EXTENSIONS = {'.md', '.txt', '.rst'}
 PAPER_EXTENSIONS = {'.pdf'}
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
 OFFICE_EXTENSIONS = {'.docx', '.xlsx'}
+VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.mkv', '.avi', '.m4v', '.mp3', '.wav', '.m4a', '.ogg'}
 
 CORPUS_WARN_THRESHOLD = 50_000    # words - below this, warn "you may not need a graph"
 CORPUS_UPPER_THRESHOLD = 500_000  # words - above this, warn about token cost
@@ -95,6 +97,8 @@ def classify_file(path: Path) -> FileType | None:
         return FileType.DOCUMENT
     if ext in OFFICE_EXTENSIONS:
         return FileType.DOCUMENT
+    if ext in VIDEO_EXTENSIONS:
+        return FileType.VIDEO
     return None
 
 
@@ -318,6 +322,7 @@ def detect(root: Path, *, follow_symlinks: bool = False) -> dict:
         FileType.DOCUMENT: [],
         FileType.PAPER: [],
         FileType.IMAGE: [],
+        FileType.VIDEO: [],
     }
     total_words = 0
 
@@ -388,7 +393,8 @@ def detect(root: Path, *, follow_symlinks: bool = False) -> dict:
                     skipped_sensitive.append(str(p) + " [office conversion failed - pip install graphifyy[office]]")
                 continue
             files[ftype].append(str(p))
-            total_words += count_words(p)
+            if ftype != FileType.VIDEO:
+                total_words += count_words(p)
 
     total_files = sum(len(v) for v in files.values())
     needs_graph = total_words >= CORPUS_WARN_THRESHOLD
