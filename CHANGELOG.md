@@ -2,6 +2,17 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.4.2 (2026-04-11)
+
+- Fix: same-basename files in different directories produced colliding node IDs — now uses full path (#211)
+- Fix: edges using `from`/`to` keys instead of `source`/`target` were silently dropped (#216)
+- Fix: empty graphs (no edges) crashed `to_html` with `ZeroDivisionError` (#217)
+- Fix: post-commit hook skipped `.tsx`, `.jsx`, and other valid code extensions due to stale allowlist (#222)
+- Fix: NetworkX ≤3.1 serialises edges as `links` — now accepted alongside `edges` (#212)
+- Fix: version warning fired during `install`/`uninstall` and duplicated on shared paths (#220)
+- Fix: all file IO now uses `encoding="utf-8"` — prevents crashes on Windows with CJK or emoji labels; hook writes use `newline="\n"` to prevent CRLF shebang breakage (#204)
+- Fix: Obsidian export — node labels ending in `.md` produced `.md.md` filenames; `GRAPH_REPORT.md` now links to community hub files so vault stays in one connected component (#221)
+
 ## 0.4.1 (2026-04-10)
 
 - Fix: `collect_files()` in `extract.py` now respects `.graphifyignore` — previously ignored patterns, causing thousands of unwanted files (e.g. `node_modules/`) to be scanned (#188)
