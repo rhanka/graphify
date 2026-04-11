@@ -1,7 +1,15 @@
 # generate GRAPH_REPORT.md - the human-readable audit trail
 from __future__ import annotations
+import re
 from datetime import date
 import networkx as nx
+
+
+def _safe_community_name(label: str) -> str:
+    """Mirrors export.safe_name so community hub filenames and report wikilinks always agree."""
+    cleaned = re.sub(r'[\\/*?:"<>|#^[\]]', "", label.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")).strip()
+    cleaned = re.sub(r"\.(md|mdx|markdown)$", "", cleaned, flags=re.IGNORECASE)
+    return cleaned or "unnamed"
 
 
 def generate(
@@ -48,6 +56,18 @@ def generate(
         f"- Extraction: {ext_pct}% EXTRACTED · {inf_pct}% INFERRED · {amb_pct}% AMBIGUOUS"
         + (f" · INFERRED: {len(inf_edges)} edges (avg confidence: {inf_avg})" if inf_avg is not None else ""),
         f"- Token cost: {token_cost.get('input', 0):,} input · {token_cost.get('output', 0):,} output",
+    ]
+
+    # Community hub navigation - links to _COMMUNITY_*.md files in the Obsidian vault.
+    # Without these, GRAPH_REPORT.md is a dead-end and the vault splits into disconnected components.
+    if communities:
+        lines += ["", "## Community Hubs (Navigation)"]
+        for cid in communities:
+            label = community_labels.get(cid, f"Community {cid}")
+            safe = _safe_community_name(label)
+            lines.append(f"- [[_COMMUNITY_{safe}|{label}]]")
+
+    lines += [
         "",
         "## God Nodes (most connected - your core abstractions)",
     ]
