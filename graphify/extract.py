@@ -673,7 +673,7 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
             "weight": weight,
         })
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def walk(node, parent_class_nid: str | None = None) -> None:
@@ -1004,7 +1004,7 @@ def _extract_python_rationale(path: Path, result: dict) -> None:
     nodes = result["nodes"]
     edges = result["edges"]
     seen_ids = {n["id"] for n in nodes}
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
 
     def _get_docstring(body_node) -> tuple[str, int] | None:
         if not body_node:
@@ -1200,7 +1200,7 @@ def extract_julia(path: Path) -> dict:
             "weight": weight,
         })
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def _func_name_from_signature(sig_node) -> str | None:
@@ -1415,7 +1415,7 @@ def extract_go(path: Path) -> dict:
             "weight": weight,
         })
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def walk(node) -> None:
@@ -1603,7 +1603,7 @@ def extract_rust(path: Path) -> dict:
             "weight": weight,
         })
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def walk(node, parent_impl_nid: str | None = None) -> None:
@@ -1761,7 +1761,7 @@ def extract_zig(path: Path) -> dict:
                       "confidence": confidence, "source_file": str_path,
                       "source_location": f"L{line}", "weight": weight})
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def _extract_import(node) -> None:
@@ -1916,7 +1916,7 @@ def extract_powershell(path: Path) -> dict:
                       "confidence": confidence, "source_file": str_path,
                       "source_location": f"L{line}", "weight": weight})
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     _PS_SKIP = frozenset({
@@ -2205,7 +2205,7 @@ def extract_objc(path: Path) -> dict:
                       "confidence": confidence, "source_file": str_path,
                       "source_location": f"L{line}", "weight": weight})
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     def _read(node) -> str:
@@ -2403,7 +2403,7 @@ def extract_elixir(path: Path) -> dict:
                       "confidence": confidence, "source_file": str_path,
                       "source_location": f"L{line}", "weight": weight})
 
-    file_nid = _make_id(stem)
+    file_nid = _make_id(str(path))
     add_node(file_nid, path.name, 1)
 
     _IMPORT_KEYWORDS = frozenset({"alias", "import", "require", "use"})

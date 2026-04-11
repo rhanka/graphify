@@ -42,6 +42,12 @@ def build_from_json(extraction: dict, *, directed: bool = False) -> nx.Graph:
         G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
     node_set = set(G.nodes())
     for edge in extraction.get("edges", []):
+        if "source" not in edge and "from" in edge:
+            edge["source"] = edge["from"]
+        if "target" not in edge and "to" in edge:
+            edge["target"] = edge["to"]
+        if "source" not in edge or "target" not in edge:
+            continue
         src, tgt = edge["source"], edge["target"]
         if src not in node_set or tgt not in node_set:
             continue  # skip edges to external/stdlib nodes - expected, not an error
