@@ -46,19 +46,13 @@ $GRAPHIFY_PYTHON -c "
 import os, sys
 from pathlib import Path
 
-CODE_EXTS = {
-    '.py', '.ts', '.js', '.go', '.rs', '.java', '.cpp', '.c', '.rb', '.swift',
-    '.kt', '.cs', '.scala', '.php', '.cc', '.cxx', '.hpp', '.h', '.kts',
-}
-
 changed_raw = os.environ.get('GRAPHIFY_CHANGED', '')
 changed = [Path(f.strip()) for f in changed_raw.strip().splitlines() if f.strip()]
-code_changed = [f for f in changed if f.suffix.lower() in CODE_EXTS and f.exists()]
 
-if not code_changed:
+if not changed:
     sys.exit(0)
 
-print(f'[graphify hook] {len(code_changed)} code file(s) changed - rebuilding graph...')
+print(f'[graphify hook] {len(changed)} file(s) changed - rebuilding graph...')
 
 try:
     from graphify.watch import _rebuild_code

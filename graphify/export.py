@@ -346,7 +346,7 @@ def to_html(
 
     node_community = _node_community_map(communities)
     degree = dict(G.degree())
-    max_deg = max(degree.values()) if degree else 1
+    max_deg = max(degree.values(), default=1) or 1
 
     # Build nodes list for vis.js
     vis_nodes = []
@@ -957,7 +957,7 @@ def to_svg(
     pos = nx.spring_layout(G, seed=42, k=2.0 / (G.number_of_nodes() ** 0.5 + 1))
 
     degree = dict(G.degree())
-    max_deg = max(degree.values()) if degree else 1
+    max_deg = max(degree.values(), default=1) or 1
 
     node_colors = [COMMUNITY_COLORS[node_community.get(n, 0) % len(COMMUNITY_COLORS)] for n in G.nodes()]
     node_sizes = [300 + 1200 * (degree.get(n, 1) / max_deg) for n in G.nodes()]
