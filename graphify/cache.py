@@ -55,7 +55,7 @@ def load_cached(path: Path, root: Path = Path(".")) -> dict | None:
     if not entry.exists():
         return None
     try:
-        return json.loads(entry.read_text())
+        return json.loads(entry.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -70,7 +70,7 @@ def save_cached(path: Path, result: dict, root: Path = Path(".")) -> None:
     entry = cache_dir(root) / f"{h}.json"
     tmp = entry.with_suffix(".tmp")
     try:
-        tmp.write_text(json.dumps(result))
+        tmp.write_text(json.dumps(result), encoding="utf-8")
         os.replace(tmp, entry)
     except Exception:
         tmp.unlink(missing_ok=True)

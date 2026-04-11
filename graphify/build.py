@@ -32,6 +32,9 @@ def build_from_json(extraction: dict, *, directed: bool = False) -> nx.Graph:
     directed=True produces a DiGraph that preserves edge direction (source→target).
     directed=False (default) produces an undirected Graph for backward compatibility.
     """
+    # NetworkX <= 3.1 serialised edges as "links"; remap to "edges" for compatibility.
+    if "edges" not in extraction and "links" in extraction:
+        extraction = dict(extraction, edges=extraction["links"])
     errors = validate_extraction(extraction)
     # Dangling edges (stdlib/external imports) are expected - only warn about real schema errors.
     real_errors = [e for e in errors if "does not match any node id" not in e]
