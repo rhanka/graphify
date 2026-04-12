@@ -165,6 +165,15 @@ python -m graphify.serve graphify-out/graph.json
 That gives the assistant structured graph access for repeated queries such as
 `query_graph`, `get_node`, `get_neighbors`, and `shortest_path`.
 
+> **WSL / Linux note:** Ubuntu ships `python3`, not `python`. Install into a project venv to avoid PEP 668 conflicts, and use the full venv path in your `.mcp.json`:
+> ```bash
+> python3 -m venv .venv && .venv/bin/pip install "graphifyy[mcp]"
+> ```
+> ```json
+> { "mcpServers": { "graphify": { "type": "stdio", "command": ".venv/bin/python3", "args": ["-m", "graphify.serve", "graphify-out/graph.json"] } } }
+> ```
+> Also note: the PyPI package is `graphifyy` (double-y) — `pip install graphify` installs an unrelated package.
+
 <details>
 <summary>Manual install (curl)</summary>
 
@@ -329,9 +338,25 @@ graphify sends file contents to your AI coding assistant's underlying model API 
 
 NetworkX + Leiden (graspologic) + tree-sitter + vis.js. Semantic extraction via Claude (Claude Code), GPT-4 (Codex), or whichever model your platform runs. Video transcription via faster-whisper + yt-dlp (optional, `pip install graphifyy[video]`). No Neo4j required, no server, runs entirely locally.
 
+## Built on graphify — Penpax
+
+[**Penpax**](https://safishamsi.github.io/penpax.ai) is the enterprise layer on top of graphify. Where graphify turns a folder of files into a knowledge graph, Penpax applies the same graph to your entire working life — continuously.
+
+| | graphify | Penpax |
+|---|---|---|
+| Input | A folder of files | Browser history, meetings, emails, files, code — everything |
+| Runs | On demand | Continuously in the background |
+| Scope | A project | Your entire working life |
+| Query | CLI / MCP / AI skill | Natural language, always on |
+| Privacy | Local by default | Fully on-device, no cloud |
+
+Built for lawyers, consultants, executives, doctors, researchers — anyone whose work lives across hundreds of conversations and documents they can never fully reconstruct.
+
+**Free trial launching soon.** [Join the waitlist →](https://safishamsi.github.io/penpax.ai)
+
 ## What we are building next
 
-graphify is the graph layer. We are building [Penpax](https://safishamsi.github.io/penpax.ai) on top of it — an on-device digital twin that connects your meetings, browser history, files, emails, and code into one continuously updating knowledge graph. No cloud, no training on your data. [Join the waitlist.](https://safishamsi.github.io/penpax.ai)
+graphify is the graph layer. Penpax is the always-on layer on top of it — an on-device digital twin that connects your meetings, browser history, files, emails, and code into one continuously updating knowledge graph. No cloud, no training on your data. [Join the waitlist.](https://safishamsi.github.io/penpax.ai)
 
 ## Star history
 

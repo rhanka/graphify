@@ -1165,6 +1165,53 @@ def extract_php(path: Path) -> dict:
     return _extract_generic(path, _PHP_CONFIG)
 
 
+def extract_blade(path: Path) -> dict:
+    """Extract @include, <livewire:> components, and wire:click bindings from Blade templates."""
+    import re
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {"error": f"cannot read {path}"}
+
+    file_nid = _make_id(str(path))
+    nodes = [{"id": file_nid, "label": path.name, "file_type": "code",
+              "source_file": str(path), "source_location": None}]
+    edges = []
+
+    # @include('path.to.partial') or @include("path.to.partial")
+    for m in re.finditer(r"@include\(['\"]([^'\"]+)['\"]", src):
+        tgt = m.group(1).replace(".", "/")
+        tgt_nid = _make_id(tgt)
+        if tgt_nid not in {n["id"] for n in nodes}:
+            nodes.append({"id": tgt_nid, "label": m.group(1), "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+        edges.append({"source": file_nid, "target": tgt_nid, "relation": "includes",
+                      "confidence": "EXTRACTED", "confidence_score": 1.0,
+                      "source_file": str(path), "source_location": None, "weight": 1.0})
+
+    # <livewire:component.name /> or <livewire:component.name>
+    for m in re.finditer(r"<livewire:([\w.\-]+)", src):
+        tgt_nid = _make_id(m.group(1))
+        if tgt_nid not in {n["id"] for n in nodes}:
+            nodes.append({"id": tgt_nid, "label": m.group(1), "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+        edges.append({"source": file_nid, "target": tgt_nid, "relation": "uses_component",
+                      "confidence": "EXTRACTED", "confidence_score": 1.0,
+                      "source_file": str(path), "source_location": None, "weight": 1.0})
+
+    # wire:click="methodName"
+    for m in re.finditer(r'wire:click=["\']([^"\']+)["\']', src):
+        tgt_nid = _make_id(m.group(1))
+        if tgt_nid not in {n["id"] for n in nodes}:
+            nodes.append({"id": tgt_nid, "label": m.group(1), "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+        edges.append({"source": file_nid, "target": tgt_nid, "relation": "binds_method",
+                      "confidence": "EXTRACTED", "confidence_score": 1.0,
+                      "source_file": str(path), "source_location": None, "weight": 1.0})
+
+    return {"nodes": nodes, "edges": edges}
+
+
 def extract_lua(path: Path) -> dict:
     """Extract functions, methods, require() imports, and calls from a .lua file."""
     return _extract_generic(path, _LUA_CONFIG)
@@ -2655,7 +2702,11 @@ def extract(paths: list[Path]) -> dict:
     for i, path in enumerate(paths):
         if total >= _PROGRESS_INTERVAL and i % _PROGRESS_INTERVAL == 0 and i > 0:
             print(f"  AST extraction: {i}/{total} files ({i * 100 // total}%)", flush=True)
-        extractor = _DISPATCH.get(path.suffix)
+        # .blade.php must be checked before suffix lookup since Path.suffix returns .php
+        if path.name.endswith(".blade.php"):
+            extractor = extract_blade
+        else:
+            extractor = _DISPATCH.get(path.suffix)
         if extractor is None:
             continue
         cached = load_cached(path, root)
