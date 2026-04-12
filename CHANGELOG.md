@@ -2,6 +2,10 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.4.6 (2026-04-12)
+
+- Add: Google Antigravity support — `graphify antigravity install` writes `.agent/rules/graphify.md` (always-on rules) and `.agent/workflows/graphify.md` (`/graphify` slash command) (#203, #199, #53)
+
 ## 0.4.5 (2026-04-12)
 
 - Fix: MCP server no longer crashes with `ValidationError` on blank lines sent between JSON messages by some clients (#201)
