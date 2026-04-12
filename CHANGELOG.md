@@ -2,6 +2,15 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.4.3 (2026-04-12)
+
+- Fix: JS/TS relative imports now resolve to full-path node IDs — previously all `imports_from` edges were silently dropped on large TypeScript codebases (#256)
+- Fix: Python relative imports (`from .foo import bar`) now resolve correctly to full-path node IDs (#256)
+- Fix: `watch --rebuild_code` now merges fresh AST with existing semantic nodes from docs/papers instead of overwriting them (#253)
+- Fix: Windows hooks now fall back to `python` if `python3` is not found; exits cleanly if neither has graphify installed (#244)
+- Fix: `surprising_connections` / `suggest_questions` no longer crash with `KeyError` on stale `_src`/`_tgt` edge hints after node merges (#226)
+- Add: `.vue` and `.svelte` files now recognized as code and included in extraction (#254)
+
 ## 0.4.2 (2026-04-11)
 
 - Fix: same-basename files in different directories produced colliding node IDs — now uses full path (#211)

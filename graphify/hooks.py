@@ -20,13 +20,21 @@ if [ -n "$GRAPHIFY_BIN" ]; then
     # Allowlist: only keep characters valid in a filesystem path to prevent
     # injection if the shebang contains shell metacharacters
     case "$GRAPHIFY_PYTHON" in
-        *[!a-zA-Z0-9/_.-]*) GRAPHIFY_PYTHON="python3" ;;
+        *[!a-zA-Z0-9/_.-]*) GRAPHIFY_PYTHON="" ;;
     esac
-    if ! "$GRAPHIFY_PYTHON" -c "import graphify" 2>/dev/null; then
-        GRAPHIFY_PYTHON="python3"
+    if [ -n "$GRAPHIFY_PYTHON" ] && ! "$GRAPHIFY_PYTHON" -c "import graphify" 2>/dev/null; then
+        GRAPHIFY_PYTHON=""
     fi
-else
-    GRAPHIFY_PYTHON="python3"
+fi
+# Fall back: try python3, then python (Windows has no python3 shim)
+if [ -z "$GRAPHIFY_PYTHON" ]; then
+    if command -v python3 >/dev/null 2>&1 && python3 -c "import graphify" 2>/dev/null; then
+        GRAPHIFY_PYTHON="python3"
+    elif command -v python >/dev/null 2>&1 && python -c "import graphify" 2>/dev/null; then
+        GRAPHIFY_PYTHON="python"
+    else
+        exit 0
+    fi
 fi
 """
 
