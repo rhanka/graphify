@@ -44,7 +44,8 @@ def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
                 code_ids = {n["id"] for n in existing.get("nodes", []) if n.get("file_type") == "code"}
                 sem_nodes = [n for n in existing.get("nodes", []) if n.get("file_type") != "code"]
                 sem_edges = [e for e in existing.get("edges", [])
-                             if e.get("source") not in code_ids and e.get("target") not in code_ids]
+                             if e.get("confidence") in ("INFERRED", "AMBIGUOUS")
+                             or (e.get("source") not in code_ids and e.get("target") not in code_ids)]
                 result = {
                     "nodes": result["nodes"] + sem_nodes,
                     "edges": result["edges"] + sem_edges,
