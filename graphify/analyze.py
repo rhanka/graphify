@@ -218,7 +218,11 @@ def _cross_file_surprises(G: nx.Graph, communities: dict[int, list[str]], top_n:
 
         score, reasons = _surprise_score(G, u, v, data, node_community, u_source, v_source)
         src_id = data.get("_src", u)
+        if src_id not in G.nodes:
+            src_id = u
         tgt_id = data.get("_tgt", v)
+        if tgt_id not in G.nodes:
+            tgt_id = v
         candidates.append({
             "_score": score,
             "source": G.nodes[src_id].get("label", src_id),
@@ -294,7 +298,11 @@ def _cross_community_surprises(
         # This edge crosses community boundaries - interesting
         confidence = data.get("confidence", "EXTRACTED")
         src_id = data.get("_src", u)
+        if src_id not in G.nodes:
+            src_id = u
         tgt_id = data.get("_tgt", v)
+        if tgt_id not in G.nodes:
+            tgt_id = v
         surprises.append({
             "source": G.nodes[src_id].get("label", src_id),
             "target": G.nodes[tgt_id].get("label", tgt_id),
@@ -392,7 +400,11 @@ def suggest_questions(
             others = []
             for u, v, d in inferred[:2]:
                 src_id = d.get("_src", u)
+                if src_id not in G.nodes:
+                    src_id = u
                 tgt_id = d.get("_tgt", v)
+                if tgt_id not in G.nodes:
+                    tgt_id = v
                 other_id = tgt_id if src_id == node_id else src_id
                 others.append(G.nodes[other_id].get("label", other_id))
             questions.append({

@@ -112,8 +112,18 @@ def _import_python(node, source: bytes, file_nid: str, stem: str, edges: list, s
     elif t == "import_from_statement":
         module_node = node.child_by_field_name("module_name")
         if module_node:
-            raw = _read_text(module_node, source).lstrip(".")
-            tgt_nid = _make_id(raw)
+            raw = _read_text(module_node, source)
+            if raw.startswith("."):
+                # Relative import - resolve to full path so IDs match file node IDs
+                dots = len(raw) - len(raw.lstrip("."))
+                module_name = raw.lstrip(".")
+                base = Path(str_path).parent
+                for _ in range(dots - 1):
+                    base = base.parent
+                rel = (module_name.replace(".", "/") + ".py") if module_name else "__init__.py"
+                tgt_nid = _make_id(str(base / rel))
+            else:
+                tgt_nid = _make_id(raw)
             edges.append({
                 "source": file_nid,
                 "target": tgt_nid,
@@ -129,18 +139,32 @@ def _import_js(node, source: bytes, file_nid: str, stem: str, edges: list, str_p
     for child in node.children:
         if child.type == "string":
             raw = _read_text(child, source).strip("'\"` ")
-            module_name = raw.lstrip("./").split("/")[-1]
-            if module_name:
+            if not raw:
+                break
+            if raw.startswith("."):
+                # Relative import - resolve to full path so IDs match file node IDs
+                resolved = Path(str_path).parent / raw
+                # TypeScript ESM: imports written as .js but actual file is .ts/.tsx
+                if resolved.suffix == ".js":
+                    resolved = resolved.with_suffix(".ts")
+                elif resolved.suffix == ".jsx":
+                    resolved = resolved.with_suffix(".tsx")
+                tgt_nid = _make_id(str(resolved))
+            else:
+                # Bare/scoped import (node_modules) - use last segment; dropped as external
+                module_name = raw.split("/")[-1]
+                if not module_name:
+                    break
                 tgt_nid = _make_id(module_name)
-                edges.append({
-                    "source": file_nid,
-                    "target": tgt_nid,
-                    "relation": "imports_from",
-                    "confidence": "EXTRACTED",
-                    "source_file": str_path,
-                    "source_location": f"L{node.start_point[0] + 1}",
-                    "weight": 1.0,
-                })
+            edges.append({
+                "source": file_nid,
+                "target": tgt_nid,
+                "relation": "imports_from",
+                "confidence": "EXTRACTED",
+                "source_file": str_path,
+                "source_location": f"L{node.start_point[0] + 1}",
+                "weight": 1.0,
+            })
             break
 
 
@@ -2622,6 +2646,8 @@ def extract(paths: list[Path]) -> dict:
         ".m": extract_objc,
         ".mm": extract_objc,
         ".jl": extract_julia,
+        ".vue": extract_js,
+        ".svelte": extract_js,
     }
 
     total = len(paths)
