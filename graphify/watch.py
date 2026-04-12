@@ -34,6 +34,27 @@ def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
 
         result = extract(code_files)
 
+        # Preserve semantic nodes/edges from a previous full run.
+        # AST-only rebuild replaces code nodes; doc/paper/image nodes are kept.
+        out = watch_path / "graphify-out"
+        existing_graph = out / "graph.json"
+        if existing_graph.exists():
+            try:
+                existing = json.loads(existing_graph.read_text(encoding="utf-8"))
+                code_ids = {n["id"] for n in existing.get("nodes", []) if n.get("file_type") == "code"}
+                sem_nodes = [n for n in existing.get("nodes", []) if n.get("file_type") != "code"]
+                sem_edges = [e for e in existing.get("edges", [])
+                             if e.get("source") not in code_ids and e.get("target") not in code_ids]
+                result = {
+                    "nodes": result["nodes"] + sem_nodes,
+                    "edges": result["edges"] + sem_edges,
+                    "hyperedges": existing.get("hyperedges", []),
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                }
+            except Exception:
+                pass  # corrupt graph.json - proceed with AST-only
+
         detection = {
             "files": {"code": [str(f) for f in code_files], "document": [], "paper": [], "image": []},
             "total_files": len(code_files),
@@ -48,7 +69,6 @@ def _rebuild_code(watch_path: Path, *, follow_symlinks: bool = False) -> bool:
         labels = {cid: "Community " + str(cid) for cid in communities}
         questions = suggest_questions(G, communities, labels)
 
-        out = watch_path / "graphify-out"
         out.mkdir(exist_ok=True)
 
         report = generate(G, communities, cohesion, labels, gods, surprises, detection,
