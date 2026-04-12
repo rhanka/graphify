@@ -2,6 +2,10 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
+## 0.4.5 (2026-04-12)
+
+- Fix: MCP server no longer crashes with `ValidationError` on blank lines sent between JSON messages by some clients (#201)
+
 ## 0.4.4 (2026-04-12)
 
 - Fix: `watch` now preserves INFERRED/AMBIGUOUS edges (code↔doc rationale links) across rebuilds — previously all cross-type edges were dropped (#261)
