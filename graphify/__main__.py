@@ -92,6 +92,11 @@ _PLATFORM_CONFIG: dict[str, dict] = {
         "skill_dst": Path(".trae-cn") / "skills" / "graphify" / "SKILL.md",
         "claude_md": False,
     },
+    "antigravity": {
+        "skill_file": "skill.md",
+        "skill_dst": Path(".agent") / "skills" / "graphify" / "SKILL.md",
+        "claude_md": False,
+    },
     "windows": {
         "skill_file": "skill-windows.md",
         "skill_dst": Path(".claude") / "skills" / "graphify" / "SKILL.md",
@@ -109,7 +114,7 @@ def install(platform: str = "claude") -> None:
         return
     if platform not in _PLATFORM_CONFIG:
         print(
-            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}, gemini, cursor",
+            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}, gemini, cursor, antigravity",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -296,6 +301,91 @@ def gemini_uninstall(project_dir: Path | None = None) -> None:
         target.unlink()
         print(f"GEMINI.md was empty after removal - deleted {target.resolve()}")
     _uninstall_gemini_hook(project_dir or Path("."))
+
+
+_ANTIGRAVITY_RULES_PATH = Path(".agent") / "rules" / "graphify.md"
+_ANTIGRAVITY_WORKFLOW_PATH = Path(".agent") / "workflows" / "graphify.md"
+
+_ANTIGRAVITY_RULES = """\
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+"""
+
+_ANTIGRAVITY_WORKFLOW = """\
+# Workflow: graphify
+**Command:** /graphify
+**Description:** Turn any folder of files into a navigable knowledge graph
+
+## Steps
+Follow the graphify skill installed at ~/.agent/skills/graphify/SKILL.md to run the full pipeline.
+
+If no path argument is given, use `.` (current directory).
+"""
+
+
+def _antigravity_install(project_dir: Path) -> None:
+    """Install graphify for Google Antigravity: skill + .agent/rules + .agent/workflows."""
+    # 1. Copy skill file to ~/.agent/skills/graphify/SKILL.md
+    install(platform="antigravity")
+
+    # 2. Write .agent/rules/graphify.md
+    rules_path = project_dir / _ANTIGRAVITY_RULES_PATH
+    rules_path.parent.mkdir(parents=True, exist_ok=True)
+    if rules_path.exists():
+        print(f"graphify rule already exists at {rules_path} (no change)")
+    else:
+        rules_path.write_text(_ANTIGRAVITY_RULES, encoding="utf-8")
+        print(f"graphify rule written to {rules_path.resolve()}")
+
+    # 3. Write .agent/workflows/graphify.md
+    wf_path = project_dir / _ANTIGRAVITY_WORKFLOW_PATH
+    wf_path.parent.mkdir(parents=True, exist_ok=True)
+    if wf_path.exists():
+        print(f"graphify workflow already exists at {wf_path} (no change)")
+    else:
+        wf_path.write_text(_ANTIGRAVITY_WORKFLOW, encoding="utf-8")
+        print(f"graphify workflow written to {wf_path.resolve()}")
+
+    print()
+    print("Antigravity will now check the knowledge graph before answering")
+    print("codebase questions. Run /graphify first to build the graph.")
+
+
+def _antigravity_uninstall(project_dir: Path) -> None:
+    """Remove graphify Antigravity rules, workflow, and skill files."""
+    # Remove rules file
+    rules_path = project_dir / _ANTIGRAVITY_RULES_PATH
+    if rules_path.exists():
+        rules_path.unlink()
+        print(f"graphify rule removed from {rules_path.resolve()}")
+    else:
+        print("No graphify Antigravity rule found - nothing to do")
+
+    # Remove workflow file
+    wf_path = project_dir / _ANTIGRAVITY_WORKFLOW_PATH
+    if wf_path.exists():
+        wf_path.unlink()
+        print(f"graphify workflow removed from {wf_path.resolve()}")
+
+    # Remove skill file
+    skill_dst = Path.home() / _PLATFORM_CONFIG["antigravity"]["skill_dst"]
+    if skill_dst.exists():
+        skill_dst.unlink()
+        print(f"graphify skill removed from {skill_dst}")
+    version_file = skill_dst.parent / ".graphify_version"
+    if version_file.exists():
+        version_file.unlink()
+    for d in (skill_dst.parent, skill_dst.parent.parent, skill_dst.parent.parent.parent):
+        try:
+            d.rmdir()
+        except OSError:
+            break
 
 
 _CURSOR_RULE_PATH = Path(".cursor") / "rules" / "graphify.mdc"
@@ -639,7 +729,7 @@ def main() -> None:
         print("Usage: graphify <command>")
         print()
         print("Commands:")
-        print("  install [--platform P]  copy skill to platform config dir (claude|windows|codex|opencode|aider|claw|droid|trae|trae-cn|gemini|cursor)")
+        print("  install [--platform P]  copy skill to platform config dir (claude|windows|codex|opencode|aider|claw|droid|trae|trae-cn|gemini|cursor|antigravity)")
         print("  query \"<question>\"       BFS traversal of graph.json for a question")
         print("    --dfs                   use depth-first instead of breadth-first")
         print("    --budget N              cap output at N tokens (default 2000)")
@@ -676,6 +766,8 @@ def main() -> None:
         print("  trae uninstall         remove graphify section from AGENTS.md")
         print("  trae-cn install         write graphify section to AGENTS.md (Trae CN)")
         print("  trae-cn uninstall      remove graphify section from AGENTS.md")
+        print("  antigravity install     write .agent/rules + .agent/workflows + skill (Google Antigravity)")
+        print("  antigravity uninstall   remove .agent/rules, .agent/workflows, and skill")
         print()
         return
 
@@ -755,6 +847,15 @@ def main() -> None:
                 _uninstall_codex_hook(Path("."))
         else:
             print(f"Usage: graphify {cmd} [install|uninstall]", file=sys.stderr)
+            sys.exit(1)
+    elif cmd == "antigravity":
+        subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if subcmd == "install":
+            _antigravity_install(Path("."))
+        elif subcmd == "uninstall":
+            _antigravity_uninstall(Path("."))
+        else:
+            print("Usage: graphify antigravity [install|uninstall]", file=sys.stderr)
             sys.exit(1)
     elif cmd == "hook":
         from graphify.hooks import install as hook_install, uninstall as hook_uninstall, status as hook_status
