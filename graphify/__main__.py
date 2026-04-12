@@ -74,7 +74,7 @@ _PLATFORM_CONFIG: dict[str, dict] = {
     },
     "claw": {
         "skill_file": "skill-claw.md",
-        "skill_dst": Path(".claw") / "skills" / "graphify" / "SKILL.md",
+        "skill_dst": Path(".openclaw") / "skills" / "graphify" / "SKILL.md",
         "claude_md": False,
     },
     "droid": {

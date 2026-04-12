@@ -8,7 +8,7 @@ PLATFORMS = {
     "claude": (".claude/skills/graphify/SKILL.md",),
     "codex": (".agents/skills/graphify/SKILL.md",),
     "opencode": (".config/opencode/skills/graphify/SKILL.md",),
-    "claw": (".claw/skills/graphify/SKILL.md",),
+    "claw": (".openclaw/skills/graphify/SKILL.md",),
     "droid": (".factory/skills/graphify/SKILL.md",),
     "trae": (".trae/skills/graphify/SKILL.md",),
     "trae-cn": (".trae-cn/skills/graphify/SKILL.md",),
@@ -39,7 +39,7 @@ def test_install_opencode(tmp_path):
 
 def test_install_claw(tmp_path):
     _install(tmp_path, "claw")
-    assert (tmp_path / ".claw" / "skills" / "graphify" / "SKILL.md").exists()
+    assert (tmp_path / ".openclaw" / "skills" / "graphify" / "SKILL.md").exists()
 
 
 def test_install_droid(tmp_path):
