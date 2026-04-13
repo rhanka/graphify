@@ -50,7 +50,7 @@ def _score_nodes(G: nx.Graph, terms: list[str]) -> list[tuple[float, str]]:
     norm_terms = [_strip_diacritics(t).lower() for t in terms]
     for nid, data in G.nodes(data=True):
         norm_label = data.get("norm_label") or _strip_diacritics(data.get("label", "")).lower()
-        source = data.get("source_file", "").lower()
+        source = (data.get("source_file") or "").lower()
         score = sum(1 for t in norm_terms if t in norm_label) + sum(0.5 for t in norm_terms if t in source)
         if score > 0:
             scored.append((score, nid))
@@ -99,7 +99,8 @@ def _subgraph_to_text(G: nx.Graph, nodes: set[str], edges: list[tuple], token_bu
         lines.append(line)
     for u, v in edges:
         if u in nodes and v in nodes:
-            d = G.edges[u, v]
+            raw = G[u][v]
+            d = next(iter(raw.values()), {}) if isinstance(G, (nx.MultiGraph, nx.MultiDiGraph)) else raw
             line = f"EDGE {sanitize_label(G.nodes[u].get('label', u))} --{d.get('relation', '')} [{d.get('confidence', '')}]--> {sanitize_label(G.nodes[v].get('label', v))}"
             lines.append(line)
     output = "\n".join(lines)

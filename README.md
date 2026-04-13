@@ -36,7 +36,7 @@ dist/
 *.generated.py
 ```
 
-Same syntax as `.gitignore`. Patterns match against file paths relative to the folder you run graphify on.
+Same syntax as `.gitignore`. You can keep a single `.graphifyignore` at your repo root — patterns work correctly even when graphify is run on a subfolder.
 
 ## How it works
 
@@ -256,11 +256,22 @@ graphify hermes uninstall
 graphify antigravity install       # .agent/rules + .agent/workflows (Google Antigravity)
 graphify antigravity uninstall
 
-# query the graph directly from the terminal (no AI assistant needed)
+# query and navigate the graph directly from the terminal (no AI assistant needed)
 graphify query "what connects attention to the optimizer?"
 graphify query "show the auth flow" --dfs
 graphify query "what is CfgNode?" --budget 500
 graphify query "..." --graph path/to/graph.json
+graphify path "DigestAuth" "Response"       # shortest path between two nodes
+graphify explain "SwinTransformer"           # plain-language explanation of a node
+
+# add content and update the graph from the terminal
+graphify add https://arxiv.org/abs/1706.03762          # fetch paper, save to ./raw, update graph
+graphify add https://... --author "Name" --contributor "Name"
+
+# incremental update and maintenance
+graphify watch ./src                         # auto-rebuild on code changes
+graphify update ./src                        # re-extract code files, no LLM needed
+graphify cluster-only ./my-project           # rerun clustering on existing graph.json
 ```
 
 Works with any mix of file types:

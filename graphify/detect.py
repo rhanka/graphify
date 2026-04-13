@@ -263,20 +263,18 @@ def _is_noise_dir(part: str) -> bool:
     return False
 
 
-def _load_graphifyignore(root: Path) -> list[str]:
-    """Read .graphifyignore from root **and ancestor directories**, returning patterns.
+def _load_graphifyignore(root: Path) -> list[tuple[Path, str]]:
+    """Read .graphifyignore from root **and ancestor directories**.
 
-    Walks upward from *root* towards the filesystem root, collecting patterns
-    from every ``.graphifyignore`` encountered (like ``.gitignore`` discovery).
-    The search stops at the filesystem root or at a ``.git`` directory boundary
-    so it doesn't leak outside the repository.
+    Returns a list of (anchor_dir, pattern) pairs. Each pattern is matched
+    against paths relative to both the scan root and the anchor_dir where
+    the .graphifyignore file was found — so patterns written relative to a
+    parent directory still work when graphify is run on a subfolder.
 
-    Lines starting with # are comments. Blank lines are ignored.
-    Patterns follow gitignore semantics: glob matched against the path
-    relative to root. A leading slash anchors to root. A trailing slash
-    matches directories only (we match both dir and file for simplicity).
+    Walks upward from *root* towards the filesystem root, stopping at a
+    ``.git`` boundary. Lines starting with # are comments; blank lines ignored.
     """
-    patterns: list[str] = []
+    patterns: list[tuple[Path, str]] = []
     current = root.resolve()
     while True:
         ignore_file = current / ".graphifyignore"
@@ -284,7 +282,7 @@ def _load_graphifyignore(root: Path) -> list[str]:
             for line in ignore_file.read_text(encoding="utf-8", errors="ignore").splitlines():
                 line = line.strip()
                 if line and not line.startswith("#"):
-                    patterns.append(line)
+                    patterns.append((current, line))
         # Stop climbing once we've processed the git repo root
         if (current / ".git").exists():
             break
@@ -295,34 +293,44 @@ def _load_graphifyignore(root: Path) -> list[str]:
     return patterns
 
 
-def _is_ignored(path: Path, root: Path, patterns: list[str]) -> bool:
+def _is_ignored(path: Path, root: Path, patterns: list[tuple[Path, str]]) -> bool:
     """Return True if path matches any .graphifyignore pattern."""
     if not patterns:
         return False
-    try:
-        rel = str(path.relative_to(root))
-    except ValueError:
-        return False
-    rel = rel.replace(os.sep, "/")
-    parts = rel.split("/")
-    for pattern in patterns:
-        # Normalize: strip leading/trailing slashes for matching purposes
-        p = pattern.strip("/")
-        if not p:
-            continue
-        # Match against full relative path
+
+    def _matches(rel: str, p: str) -> bool:
+        parts = rel.split("/")
         if fnmatch.fnmatch(rel, p):
             return True
-        # Match against filename alone
         if fnmatch.fnmatch(path.name, p):
             return True
-        # Match against any path segment or prefix
-        # e.g. "vendor" or "vendor/" should match "vendor/lib.py"
         for i, part in enumerate(parts):
             if fnmatch.fnmatch(part, p):
                 return True
             if fnmatch.fnmatch("/".join(parts[:i + 1]), p):
                 return True
+        return False
+
+    for anchor, pattern in patterns:
+        p = pattern.strip("/")
+        if not p:
+            continue
+        # Try path relative to the scan root
+        try:
+            rel = str(path.relative_to(root)).replace(os.sep, "/")
+            if _matches(rel, p):
+                return True
+        except ValueError:
+            pass
+        # Also try relative to the anchor dir (the .graphifyignore's location),
+        # so patterns written at a parent level still fire when running on a subfolder
+        if anchor != root:
+            try:
+                rel_anchor = str(path.relative_to(anchor)).replace(os.sep, "/")
+                if _matches(rel_anchor, p):
+                    return True
+            except ValueError:
+                pass
     return False
 
 
