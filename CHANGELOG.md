@@ -2,7 +2,14 @@
 
 Full release notes with details on each version: [GitHub Releases](https://github.com/safishamsi/graphify/releases)
 
-## 0.4.9 (2026-04-13)
+## 0.4.11 (2026-04-13)
+
+- Fix: `graphify query` no longer crashes with `ValueError` on MultiGraph graphs — `G.edges[u, v]` replaced with `G[u][v]` + MultiGraph guard (#305)
+- Fix: `graphify query` no longer crashes with `AttributeError: 'NoneType' has no attribute 'lower'` when a node has a null `source_file` (#307)
+- Fix: MCP server launched from a different directory now correctly derives the `graphify-out` base from the absolute path provided, instead of CWD (#309)
+- Fix: `.graphifyignore` patterns from a parent directory now fire correctly when graphify is run on a subfolder — patterns are matched against paths relative to both the scan root and the `.graphifyignore`'s anchor directory (#303)
+
+## 0.4.10 (2026-04-13)
 
 - Fix: `graphify install --platform cursor` no longer crashes — passes `Path(".")` to `_cursor_install` (#281)
 - Fix: `_agents_uninstall` now only removes the OpenCode plugin when uninstalling the `opencode` platform — other platforms were incorrectly having their OpenCode plugin stripped (#276)
@@ -20,6 +27,7 @@ Full release notes with details on each version: [GitHub Releases](https://githu
 - Add: `prune_dangling_edges()` utility in `export.py` — removes edges whose source/target is not in the node set (#294)
 - Fix: Antigravity install injects YAML frontmatter into skill file for native tool discovery; rules now include MCP navigation hint; prints MCP config snippet (#268)
 - Fix: Windows hook tests now use platform-aware assertions instead of POSIX executable bit checks (#279)
+- Add: CLI commands `path`, `explain`, `add`, `watch`, `update`, `cluster-only` now work as bare terminal commands (not just AI skill invocations) — documented in `--help` output (#277)
 
 ## 0.4.8 (2026-04-12)
 
