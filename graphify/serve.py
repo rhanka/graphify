@@ -39,12 +39,19 @@ def _communities_from_graph(G: nx.Graph) -> dict[int, list[str]]:
     return communities
 
 
+def _strip_diacritics(text: str) -> str:
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 def _score_nodes(G: nx.Graph, terms: list[str]) -> list[tuple[float, str]]:
     scored = []
+    norm_terms = [_strip_diacritics(t).lower() for t in terms]
     for nid, data in G.nodes(data=True):
-        label = data.get("label", "").lower()
+        norm_label = data.get("norm_label") or _strip_diacritics(data.get("label", "")).lower()
         source = data.get("source_file", "").lower()
-        score = sum(1 for t in terms if t in label) + sum(0.5 for t in terms if t in source)
+        score = sum(1 for t in norm_terms if t in norm_label) + sum(0.5 for t in norm_terms if t in source)
         if score > 0:
             scored.append((score, nid))
     return sorted(scored, reverse=True)
@@ -102,10 +109,11 @@ def _subgraph_to_text(G: nx.Graph, nodes: set[str], edges: list[tuple], token_bu
 
 
 def _find_node(G: nx.Graph, label: str) -> list[str]:
-    """Return node IDs whose label or ID matches the search term (case-insensitive)."""
-    term = label.lower()
+    """Return node IDs whose label or ID matches the search term (diacritic-insensitive)."""
+    term = _strip_diacritics(label).lower()
     return [nid for nid, d in G.nodes(data=True)
-            if term in d.get("label", "").lower() or term == nid.lower()]
+            if term in (d.get("norm_label") or _strip_diacritics(d.get("label", "")).lower())
+            or term == nid.lower()]
 
 
 def _filter_blank_stdin() -> None:

@@ -11,6 +11,12 @@ from networkx.readwrite import json_graph
 from graphify.security import sanitize_label
 from graphify.analyze import _node_community_map
 
+def _strip_diacritics(text: str) -> str:
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 COMMUNITY_COLORS = [
     "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
     "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC",
@@ -290,6 +296,7 @@ def to_json(G: nx.Graph, communities: dict[int, list[str]], output_path: str) ->
         data = json_graph.node_link_data(G)
     for node in data["nodes"]:
         node["community"] = node_community.get(node["id"])
+        node["norm_label"] = _strip_diacritics(node.get("label", "")).lower()
     for link in data["links"]:
         if "confidence_score" not in link:
             conf = link.get("confidence", "EXTRACTED")
@@ -297,6 +304,21 @@ def to_json(G: nx.Graph, communities: dict[int, list[str]], output_path: str) ->
     data["hyperedges"] = getattr(G, "graph", {}).get("hyperedges", [])
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+def prune_dangling_edges(graph_data: dict) -> tuple[dict, int]:
+    """Remove edges whose source or target node is not in the node set.
+
+    Returns the cleaned graph_data dict and the number of pruned edges.
+    """
+    node_ids = {n["id"] for n in graph_data["nodes"]}
+    links_key = "links" if "links" in graph_data else "edges"
+    before = len(graph_data[links_key])
+    graph_data[links_key] = [
+        e for e in graph_data[links_key]
+        if e["source"] in node_ids and e["target"] in node_ids
+    ]
+    return graph_data, before - len(graph_data[links_key])
 
 
 def _cypher_escape(s: str) -> str:
