@@ -92,6 +92,11 @@ _PLATFORM_CONFIG: dict[str, dict] = {
         "skill_dst": Path(".trae-cn") / "skills" / "graphify" / "SKILL.md",
         "claude_md": False,
     },
+    "hermes": {
+        "skill_file": "skill-claw.md",
+        "skill_dst": Path(".hermes") / "skills" / "graphify" / "SKILL.md",
+        "claude_md": False,
+    },
     "antigravity": {
         "skill_file": "skill.md",
         "skill_dst": Path(".agent") / "skills" / "graphify" / "SKILL.md",
@@ -110,11 +115,11 @@ def install(platform: str = "claude") -> None:
         gemini_install()
         return
     if platform == "cursor":
-        _cursor_install()
+        _cursor_install(Path("."))
         return
     if platform not in _PLATFORM_CONFIG:
         print(
-            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}, gemini, cursor, antigravity",
+            f"error: unknown platform '{platform}'. Choose from: {', '.join(_PLATFORM_CONFIG)}, gemini, cursor",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -314,6 +319,7 @@ This project has a graphify knowledge graph at graphify-out/.
 Rules:
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- If the graphify MCP server is active, utilize tools like `query_graph`, `get_node`, and `shortest_path` for precise architecture navigation instead of falling back to `grep`
 - After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
 """
 
@@ -333,6 +339,14 @@ def _antigravity_install(project_dir: Path) -> None:
     """Install graphify for Google Antigravity: skill + .agent/rules + .agent/workflows."""
     # 1. Copy skill file to ~/.agent/skills/graphify/SKILL.md
     install(platform="antigravity")
+
+    # 1.5. Inject YAML frontmatter for native Antigravity tool discovery
+    skill_dst = Path.home() / _PLATFORM_CONFIG["antigravity"]["skill_dst"]
+    if skill_dst.exists():
+        content = skill_dst.read_text(encoding="utf-8")
+        if not content.startswith("---\n"):
+            frontmatter = "---\nname: graphify-manager\ndescription: Rebuild the code graph or perform manual CLI queries when MCP server is offline.\n---\n\n"
+            skill_dst.write_text(frontmatter + content, encoding="utf-8")
 
     # 2. Write .agent/rules/graphify.md
     rules_path = project_dir / _ANTIGRAVITY_RULES_PATH
@@ -355,6 +369,12 @@ def _antigravity_install(project_dir: Path) -> None:
     print()
     print("Antigravity will now check the knowledge graph before answering")
     print("codebase questions. Run /graphify first to build the graph.")
+    print()
+    print("To enable full MCP architecture navigation, add this to ~/.gemini/antigravity/mcp_config.json:")
+    print('  "graphify": {')
+    print('    "command": "uv",')
+    print('    "args": ["run", "--with", "graphifyy", "--with", "mcp", "-m", "graphify.serve", "${workspace.path}/graphify-out/graph.json"]')
+    print('  }')
 
 
 def _antigravity_uninstall(project_dir: Path) -> None:
@@ -594,7 +614,7 @@ def _agents_install(project_dir: Path, platform: str) -> None:
         print(f"{platform.capitalize()} — the AGENTS.md rules are the always-on mechanism.")
 
 
-def _agents_uninstall(project_dir: Path) -> None:
+def _agents_uninstall(project_dir: Path, platform: str = "") -> None:
     """Remove the graphify section from the local AGENTS.md."""
     target = (project_dir or Path(".")) / "AGENTS.md"
 
@@ -620,7 +640,8 @@ def _agents_uninstall(project_dir: Path) -> None:
         target.unlink()
         print(f"AGENTS.md was empty after removal - deleted {target.resolve()}")
 
-    _uninstall_opencode_plugin(project_dir or Path("."))
+    if platform == "opencode":
+        _uninstall_opencode_plugin(project_dir or Path("."))
 
 
 def claude_install(project_dir: Path | None = None) -> None:
@@ -837,12 +858,12 @@ def main() -> None:
         else:
             print("Usage: graphify copilot [install|uninstall]", file=sys.stderr)
             sys.exit(1)
-    elif cmd in ("aider", "codex", "opencode", "claw", "droid", "trae", "trae-cn"):
+    elif cmd in ("aider", "codex", "opencode", "claw", "droid", "trae", "trae-cn", "hermes"):
         subcmd = sys.argv[2] if len(sys.argv) > 2 else ""
         if subcmd == "install":
             _agents_install(Path("."), cmd)
         elif subcmd == "uninstall":
-            _agents_uninstall(Path("."))
+            _agents_uninstall(Path("."), platform=cmd)
             if cmd == "codex":
                 _uninstall_codex_hook(Path("."))
         else:
@@ -901,8 +922,6 @@ def main() -> None:
                 graph_path = args[i + 1]; i += 2
             else:
                 i += 1
-        # Load graph directly — validate_graph_path restricts to graphify-out/
-        # so for custom --graph paths we resolve and load directly after existence check
         gp = Path(graph_path).resolve()
         if not gp.exists():
             print(f"error: graph file not found: {gp}", file=sys.stderr)
