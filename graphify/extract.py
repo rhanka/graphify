@@ -29,6 +29,10 @@ class LanguageConfig:
     function_types: frozenset = frozenset()
     import_types: frozenset = frozenset()
     call_types: frozenset = frozenset()
+    static_prop_types: frozenset = frozenset()
+    helper_fn_names: frozenset = frozenset()
+    container_bind_methods: frozenset = frozenset()
+    event_listener_properties: frozenset = frozenset()
 
     # Name extraction
     name_field: str = "name"
@@ -560,6 +564,10 @@ _PHP_CONFIG = LanguageConfig(
     function_types=frozenset({"function_definition", "method_declaration"}),
     import_types=frozenset({"namespace_use_clause"}),
     call_types=frozenset({"function_call_expression", "member_call_expression"}),
+    static_prop_types=frozenset({"scoped_property_access_expression"}),
+    helper_fn_names=frozenset({"config"}),
+    container_bind_methods=frozenset({"bind", "singleton", "scoped", "instance"}),
+    event_listener_properties=frozenset({"listen", "subscribe"}),
     call_function_field="function",
     call_accessor_node_types=frozenset({"member_call_expression"}),
     call_accessor_field="name",
@@ -673,6 +681,7 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
     edges: list[dict] = []
     seen_ids: set[str] = set()
     function_bodies: list[tuple[str, object]] = []
+    pending_listen_edges: list[tuple[str, str, int]] = []
 
     def add_node(nid: str, label: str, line: int) -> None:
         if nid not in seen_ids:
@@ -800,6 +809,57 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
                     walk(child, parent_class_nid=class_nid)
             return
 
+        # Event listener property arrays: $listen = [Event::class => [Listener::class]]
+        if (t == "property_declaration"
+                and parent_class_nid
+                and config.event_listener_properties):
+            for element in node.children:
+                if element.type != "property_element":
+                    continue
+                prop_name: str | None = None
+                array_node = None
+                for c in element.children:
+                    if c.type == "variable_name":
+                        for sc in c.children:
+                            if sc.type == "name":
+                                prop_name = _read_text(sc, source)
+                                break
+                    elif c.type == "array_creation_expression":
+                        array_node = c
+                if (prop_name is None
+                        or prop_name not in config.event_listener_properties
+                        or array_node is None):
+                    continue
+                for entry in array_node.children:
+                    if entry.type != "array_element_initializer":
+                        continue
+                    event_cls: str | None = None
+                    listener_arr = None
+                    for sub in entry.children:
+                        if sub.type == "class_constant_access_expression" and event_cls is None:
+                            for sc in sub.children:
+                                if sc.is_named and sc.type in ("name", "qualified_name"):
+                                    event_cls = _read_text(sc, source)
+                                    break
+                        elif sub.type == "array_creation_expression":
+                            listener_arr = sub
+                    if not event_cls or listener_arr is None:
+                        continue
+                    for listener_entry in listener_arr.children:
+                        if listener_entry.type != "array_element_initializer":
+                            continue
+                        for item in listener_entry.children:
+                            if item.type != "class_constant_access_expression":
+                                continue
+                            for sc in item.children:
+                                if sc.is_named and sc.type in ("name", "qualified_name"):
+                                    listener_cls = _read_text(sc, source)
+                                    line_no = item.start_point[0] + 1
+                                    pending_listen_edges.append((event_cls, listener_cls, line_no))
+                                    break
+                            break
+            return
+
         # Function types
         if t in config.function_types:
             # Swift deinit/subscript have no name field — resolve before generic fallback
@@ -873,6 +933,20 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
         label_to_nid[normalised.lower()] = n["id"]
 
     seen_call_pairs: set[tuple[str, str]] = set()
+    seen_static_ref_pairs: set[tuple[str, str, str]] = set()
+    seen_helper_ref_pairs: set[tuple[str, str, str]] = set()
+    seen_bind_pairs: set[tuple[str, str, str]] = set()
+
+    def _php_class_const_scope(n) -> str | None:
+        scope = n.child_by_field_name("scope")
+        if scope is None:
+            for c in n.children:
+                if c.is_named and c.type in ("name", "qualified_name", "identifier"):
+                    scope = c
+                    break
+        if scope is None:
+            return None
+        return _read_text(scope, source)
 
     def walk_calls(node, caller_nid: str) -> None:
         if node.type in config.function_boundary_types:
@@ -986,11 +1060,136 @@ def _extract_generic(path: Path, config: LanguageConfig) -> dict:
                             "weight": 1.0,
                         })
 
+            # Helper function calls: config('foo.bar') → uses_config edge to "foo"
+            if (callee_name and callee_name in config.helper_fn_names):
+                args_node = node.child_by_field_name("arguments")
+                first_key: str | None = None
+                if args_node:
+                    for arg in args_node.children:
+                        if arg.type != "argument":
+                            continue
+                        for inner in arg.children:
+                            if inner.type == "string":
+                                for sc in inner.children:
+                                    if sc.type == "string_content":
+                                        first_key = _read_text(sc, source)
+                                        break
+                                break
+                        if first_key:
+                            break
+                if first_key:
+                    segment = first_key.split(".")[0]
+                    tgt_nid = (label_to_nid.get(segment.lower())
+                               or label_to_nid.get(f"{segment}.php".lower()))
+                    if tgt_nid and tgt_nid != caller_nid:
+                        relation = f"uses_{callee_name}"
+                        pair3 = (caller_nid, tgt_nid, relation)
+                        if pair3 not in seen_helper_ref_pairs:
+                            seen_helper_ref_pairs.add(pair3)
+                            line = node.start_point[0] + 1
+                            edges.append({
+                                "source": caller_nid,
+                                "target": tgt_nid,
+                                "relation": relation,
+                                "confidence": "EXTRACTED",
+                                "confidence_score": 1.0,
+                                "source_file": str_path,
+                                "source_location": f"L{line}",
+                                "weight": 1.0,
+                            })
+
+            # Service container bindings: $this->app->bind(Foo::class, Bar::class)
+            if (node.type == "member_call_expression"
+                    and callee_name
+                    and callee_name in config.container_bind_methods):
+                args_node = node.child_by_field_name("arguments")
+                class_args: list[str] = []
+                if args_node:
+                    for arg in args_node.children:
+                        if arg.type != "argument":
+                            continue
+                        for inner in arg.children:
+                            if inner.type == "class_constant_access_expression":
+                                cls = _php_class_const_scope(inner)
+                                if cls:
+                                    class_args.append(cls)
+                                break
+                        if len(class_args) >= 2:
+                            break
+                if len(class_args) == 2:
+                    contract_name, impl_name = class_args
+                    contract_nid = label_to_nid.get(contract_name.lower())
+                    impl_nid = label_to_nid.get(impl_name.lower())
+                    if contract_nid and impl_nid and contract_nid != impl_nid:
+                        pair3 = (contract_nid, impl_nid, "bound_to")
+                        if pair3 not in seen_bind_pairs:
+                            seen_bind_pairs.add(pair3)
+                            line = node.start_point[0] + 1
+                            edges.append({
+                                "source": contract_nid,
+                                "target": impl_nid,
+                                "relation": "bound_to",
+                                "confidence": "EXTRACTED",
+                                "confidence_score": 1.0,
+                                "source_file": str_path,
+                                "source_location": f"L{line}",
+                                "weight": 1.0,
+                            })
+
+        # Static property access: Foo::$bar → uses_static_prop edge
+        if node.type in config.static_prop_types:
+            scope_node = node.child_by_field_name("scope")
+            if scope_node is None:
+                for child in node.children:
+                    if child.is_named and child.type in ("name", "qualified_name", "identifier"):
+                        scope_node = child
+                        break
+            if scope_node is not None:
+                class_name = _read_text(scope_node, source)
+                tgt_nid = label_to_nid.get(class_name.lower())
+                if tgt_nid and tgt_nid != caller_nid:
+                    pair3 = (caller_nid, tgt_nid, "uses_static_prop")
+                    if pair3 not in seen_static_ref_pairs:
+                        seen_static_ref_pairs.add(pair3)
+                        line = node.start_point[0] + 1
+                        edges.append({
+                            "source": caller_nid,
+                            "target": tgt_nid,
+                            "relation": "uses_static_prop",
+                            "confidence": "EXTRACTED",
+                            "confidence_score": 1.0,
+                            "source_file": str_path,
+                            "source_location": f"L{line}",
+                            "weight": 1.0,
+                        })
+
         for child in node.children:
             walk_calls(child, caller_nid)
 
     for caller_nid, body_node in function_bodies:
         walk_calls(body_node, caller_nid)
+
+    # ── Event listener pass ───────────────────────────────────────────────────
+    seen_listen_pairs: set[tuple[str, str]] = set()
+    for event_name, listener_name, line in pending_listen_edges:
+        event_nid = label_to_nid.get(event_name.lower())
+        listener_nid = label_to_nid.get(listener_name.lower())
+        if not event_nid or not listener_nid or event_nid == listener_nid:
+            continue
+        pair2 = (event_nid, listener_nid)
+        if pair2 in seen_listen_pairs:
+            continue
+        seen_listen_pairs.add(pair2)
+        edges.append({
+            "source": event_nid,
+            "target": listener_nid,
+            "relation": "listened_by",
+            "confidence": "EXTRACTED",
+            "confidence_score": 1.0,
+            "source_file": str_path,
+            "source_location": f"L{line}",
+            "weight": 1.0,
+        })
 
     # ── Clean edges ───────────────────────────────────────────────────────────
     valid_ids = seen_ids
@@ -1206,6 +1405,59 @@ def extract_blade(path: Path) -> dict:
             nodes.append({"id": tgt_nid, "label": m.group(1), "file_type": "code",
                           "source_file": str(path), "source_location": None})
         edges.append({"source": file_nid, "target": tgt_nid, "relation": "binds_method",
+                      "confidence": "EXTRACTED", "confidence_score": 1.0,
+                      "source_file": str(path), "source_location": None, "weight": 1.0})
+
+    return {"nodes": nodes, "edges": edges}
+
+
+def extract_dart(path: Path) -> dict:
+    """Extract classes, mixins, functions, imports, and calls from a .dart file using regex."""
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {"error": f"cannot read {path}"}
+
+    file_nid = _make_id(str(path))
+    nodes = [{"id": file_nid, "label": path.name, "file_type": "code",
+              "source_file": str(path), "source_location": None}]
+    edges = []
+    defined: set[str] = set()
+
+    # Classes and mixins
+    for m in re.finditer(r"^\s*(?:abstract\s+)?(?:class|mixin)\s+(\w+)", src, re.MULTILINE):
+        nid = _make_id(str(path), m.group(1))
+        if nid not in defined:
+            nodes.append({"id": nid, "label": m.group(1), "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+            edges.append({"source": file_nid, "target": nid, "relation": "defines",
+                          "confidence": "EXTRACTED", "confidence_score": 1.0,
+                          "source_file": str(path), "source_location": None, "weight": 1.0})
+            defined.add(nid)
+
+    # Top-level and member functions/methods
+    for m in re.finditer(r"^\s*(?:static\s+|async\s+)?(?:\w+\s+)+(\w+)\s*\(", src, re.MULTILINE):
+        name = m.group(1)
+        if name in {"if", "for", "while", "switch", "catch", "return"}:
+            continue
+        nid = _make_id(str(path), name)
+        if nid not in defined:
+            nodes.append({"id": nid, "label": name, "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+            edges.append({"source": file_nid, "target": nid, "relation": "defines",
+                          "confidence": "EXTRACTED", "confidence_score": 1.0,
+                          "source_file": str(path), "source_location": None, "weight": 1.0})
+            defined.add(nid)
+
+    # import 'package:...' or import '...'
+    for m in re.finditer(r"""^import\s+['"]([^'"]+)['"]""", src, re.MULTILINE):
+        pkg = m.group(1)
+        tgt_nid = _make_id(pkg)
+        if tgt_nid not in defined:
+            nodes.append({"id": tgt_nid, "label": pkg, "file_type": "code",
+                          "source_file": str(path), "source_location": None})
+            defined.add(tgt_nid)
+        edges.append({"source": file_nid, "target": tgt_nid, "relation": "imports",
                       "confidence": "EXTRACTED", "confidence_score": 1.0,
                       "source_file": str(path), "source_location": None, "weight": 1.0})
 
@@ -2695,6 +2947,7 @@ def extract(paths: list[Path]) -> dict:
         ".jl": extract_julia,
         ".vue": extract_js,
         ".svelte": extract_js,
+        ".dart": extract_dart,
     }
 
     total = len(paths)
