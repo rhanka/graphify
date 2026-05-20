@@ -35,7 +35,7 @@ export const VIDEO_EXTENSIONS = new Set([
 
 const CORPUS_WARN_THRESHOLD = 50_000;
 const CORPUS_UPPER_THRESHOLD = 500_000;
-const FILE_COUNT_UPPER = 200;
+const FILE_COUNT_UPPER = 500;
 
 // Sensitive file patterns
 const SENSITIVE_PATTERNS = [
