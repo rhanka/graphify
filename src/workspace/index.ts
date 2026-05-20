@@ -23,3 +23,6 @@ export {
   serialiseTokensToCss,
 } from "./tokens-fallback.js";
 export { tryGetDsTokens } from "./tokens-ds.js";
+
+export type { RenderWorkspaceShellOptions } from "./shell.js";
+export { renderWorkspaceShell } from "./shell.js";
