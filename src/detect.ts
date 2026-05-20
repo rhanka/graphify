@@ -535,8 +535,35 @@ export function loadManifest(manifestPath: string = defaultManifestPath()): Mani
   }
 }
 
+function normaliseManifestEntry(entry: number | ManifestEntry | undefined): ManifestEntry | null {
+  if (entry === undefined) return null;
+  if (typeof entry === "number") {
+    // Legacy schema: bare mtime number
+    return { mtime: entry, hash: "" };
+  }
+  if (entry && typeof entry === "object" && typeof entry.mtime === "number") {
+    return { mtime: entry.mtime, hash: typeof entry.hash === "string" ? entry.hash : "" };
+  }
+  return null;
+}
+
 export function saveManifest(files: Record<string, string[]>, manifestPath: string = defaultManifestPath()): void {
+  // Upstream 2d783e5 (#917): seed from the existing manifest so incremental
+  // callers passing only a subset of files don't silently erase entries for
+  // untouched files. Prune entries whose file no longer exists on disk —
+  // those are genuine deletions detectIncremental() should treat as gone.
+  const existing = loadManifest(manifestPath);
   const manifest: Record<string, ManifestEntry> = {};
+  for (const [f, raw] of Object.entries(existing)) {
+    const normalised = normaliseManifestEntry(raw);
+    if (!normalised) continue;
+    try {
+      if (existsSync(f)) {
+        manifest[f] = normalised;
+      }
+    } catch { /* ignore stat errors */ }
+  }
+
   for (const fileList of Object.values(files)) {
     for (const f of fileList) {
       try {
