@@ -10,7 +10,11 @@ const tempDirs: string[] = [];
 
 afterEach(() => {
   while (tempDirs.length > 0) {
-    rmSync(tempDirs.pop()!, { recursive: true, force: true });
+    // maxRetries guards against an ENOTEMPTY race: a CLI build/hook can write
+    // into the temp .graphify dir between rmSync enumerating entries and the
+    // final rmdir, leaving the dir non-empty on the first pass (seen only on
+    // the loaded test(20) CI shard). Retry instead of failing teardown.
+    rmSync(tempDirs.pop()!, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
