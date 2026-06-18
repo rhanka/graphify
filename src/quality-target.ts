@@ -329,6 +329,23 @@ export function hashCitationExtractionContract(contract: CitationExtractionContr
   return sha256Prefixed(canonicalJson(contract));
 }
 
+export function hashQualityTarget(target: NormalizedQualityTarget): string {
+  const {
+    resolvedBaselineBundlePath: _resolvedBaselineBundlePath,
+    resolvedBundlePath: _resolvedBundlePath,
+    publication,
+    ...targetForHash
+  } = target;
+  const {
+    resolvedChromeReferencePath: _resolvedChromeReferencePath,
+    ...publicationForHash
+  } = publication;
+  return sha256Prefixed(canonicalJson({
+    ...targetForHash,
+    publication: publicationForHash,
+  }));
+}
+
 export function validateCitationExtractionContractForTarget(
   target: NormalizedQualityTarget,
   contract: CitationExtractionContract,

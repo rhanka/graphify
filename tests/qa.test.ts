@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import {
   ALL_EXTRACTED_CITATION_CONTRACT,
   hashCitationExtractionContract,
+  hashQualityTarget,
   loadQualityTargetsConfig,
   type NormalizedQualityTarget,
 } from "../src/quality-target.js";
@@ -291,9 +292,98 @@ describe("evaluateQualityBundle", () => {
 
     expect(errorIds(report)).toContain("manifest.extraction_units.batch-000.mode");
   });
+
+  it("rejects a resolved manifest bound to another target or stale target hash", () => {
+    const root = tempDir();
+    const { target, bundleDir, manifest } = writeValidBundle(root);
+    manifest.target_id = "other_target";
+    manifest.target_hash = "sha256:stale";
+
+    const report = evaluateQualityBundle({ target, bundleDir, manifest });
+
+    expect(errorIds(report)).toEqual(expect.arrayContaining([
+      "manifest.target_id",
+      "manifest.target_hash",
+    ]));
+  });
+
+  it("rejects runtime data-only chrome self-comparison after bundle override", () => {
+    const root = tempDir();
+    const { target, bundleDir, manifest } = writeValidBundle(root);
+    target.publication.resolvedChromeReferencePath = bundleDir;
+    target.publication.chrome_reference_path = "bundle";
+    manifest.target_hash = hashQualityTarget(target);
+
+    const report = evaluateQualityBundle({ target, bundleDir, manifest });
+
+    expect(errorIds(report)).toContain("publication.chrome_reference_path");
+  });
+
+  it("rejects the Opus incident class before publication", () => {
+    const root = tempDir();
+    const { target, bundleDir, manifest } = writeValidBundle(root);
+    target.citations.min_count_by_node.a = 89;
+    manifest.artifacts["graph.json"]!.source_path = ".graphify/scratch/reindex-multimodel/opus/graph.json";
+
+    const graph = graphFixture();
+    const sherlockCitations = Array.from({ length: 8 }, (_, index) => ({
+      source_file: `sherlock-${index + 1}.md`,
+      section: String(index + 1),
+    }));
+    graph.nodes[0]!.citations = sherlockCitations;
+    graph.nodes[0]!.citation_count = sherlockCitations.length;
+    writeJson(join(bundleDir, "graph.json"), graph);
+    manifest.artifacts["graph.json"]!.sha256 = sha256File(join(bundleDir, "graph.json"));
+
+    writeJson(join(bundleDir, "ontology", "citations.json"), {
+      schema: "graphify_ontology_citations_v1",
+      graph_signature: computeGraphCitationSignatureFromJson(graph),
+      nodes: {},
+    });
+    manifest.artifacts["ontology/citations.json"]!.sha256 = sha256File(join(bundleDir, "ontology", "citations.json"));
+
+    writeJson(join(bundleDir, "reconciliation-candidates.json"), {
+      schema: "graphify_ontology_reconciliation_candidates_response_v1",
+      generated_at: "2026-06-17T00:00:00.000Z",
+      graph_hash: "graph-hash",
+      profile_hash: "profile-hash",
+      stale: false,
+      total: 31,
+      limit: 8,
+      offset: 0,
+      items: [],
+    });
+    manifest.artifacts["reconciliation-candidates.json"]!.sha256 = sha256File(join(bundleDir, "reconciliation-candidates.json"));
+
+    const report = evaluateQualityBundle({ target, bundleDir, manifest });
+
+    expect(errorIds(report)).toEqual(expect.arrayContaining([
+      "manifest.artifacts.graph.json.source_path",
+      "citations.min_count_by_node.a",
+      "citations.sidecar.node.a",
+      "reconciliation.response.complete",
+      "reconciliation.min_candidates",
+    ]));
+  });
 });
 
 describe("validatePrecomputedQaReportBinding", () => {
+  it("rejects a report from a different bundle path even when hashes match", () => {
+    const root = tempDir();
+    const { target, bundleDir, manifest } = writeValidBundle(root);
+    const report = evaluateQualityBundle({ target, bundleDir, manifest, targetHash: "sha256:target" });
+    report.bundle_path = join(root, "other-bundle");
+
+    const checks = validatePrecomputedQaReportBinding(report, {
+      target,
+      bundleDir,
+      manifest,
+      targetHash: "sha256:target",
+    });
+
+    expect(errorIds(checks)).toContain("qa_report.bundle_path");
+  });
+
   it("rejects a stale report after chrome reference bytes change", () => {
     const root = tempDir();
     const { target, bundleDir, manifest } = writeValidBundle(root);

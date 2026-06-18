@@ -42,14 +42,14 @@
 
 ## Lot 4 - Publication Preflight And Final Review
 
-- [ ] Wire QA preflight into any existing targetable bundle/publication path that serves/copies/pushes a studio bundle.
-- [ ] Add final regression fixture representing the Opus incident failure class.
-- [ ] Run `npm test`, `npm run lint`, and `npm run build`.
-- [ ] Run double xhigh implementation review and resolve blocking findings.
-- [ ] Run `npx graphify hook-rebuild` after code edits.
-- [ ] Gate: PR opened only after tests, review, graph rebuild, and clean intended diff.
+- [x] Wire QA preflight into any existing targetable bundle/publication path that serves/copies/pushes a studio bundle.
+- [x] Add final regression fixture representing the Opus incident failure class.
+- [x] Run `npm test`, `npm run lint`, and `npm run build`.
+- [x] Run double xhigh implementation review and resolve blocking findings.
+- [x] Run `npx graphify hook-rebuild` after code edits.
+- [x] Gate: PR opened only after tests, review, graph rebuild, and clean intended diff.
 
 ## Feedback Loop
 
-- [ ] BLOCKER: no existing publication command may exist; if so, implement `graphify qa` first and defer preflight wiring to the nearest existing command with explicit note.
+- [x] BLOCKER: no existing publication command may exist; if so, implement `graphify qa` first and defer preflight wiring to the nearest existing command with explicit note.
 - [ ] BLOCKER: deploy/merge requires GitHub permissions and CI green.

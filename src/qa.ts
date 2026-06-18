@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 
 import {
   CITATION_EXTRACTION_CONTRACT_SCHEMA,
   canonicalJson,
+  hashQualityTarget,
   sha256Prefixed,
   validateCitationExtractionContractForTarget,
   validateQualityTarget,
@@ -149,7 +150,9 @@ function fileSetHash(root: string, files: string[]): string {
 
 function treeHash(root: string, options: { exclude?: Set<string> } = {}): string {
   const exclude = options.exclude ?? new Set<string>();
-  const files = listFiles(root).filter((rel) => !exclude.has(rel) && rel !== QA_REPORT_FILENAME);
+  const files = listFiles(root).filter((rel) =>
+    !exclude.has(rel) && rel !== QA_REPORT_FILENAME && rel !== "resolved-target.json"
+  );
   return fileSetHash(root, files);
 }
 
@@ -247,10 +250,35 @@ function evaluateTargetShape(target: NormalizedQualityTarget, checks: QualityQaC
   }
 }
 
+function evaluateDataOnlyChromeTarget(
+  target: NormalizedQualityTarget,
+  bundleDir: string,
+  checks: QualityQaCheck[],
+): void {
+  if (!target.publication.data_only_chrome) return;
+  const referencePath = target.publication.resolvedChromeReferencePath;
+  if (!referencePath) return;
+  add(
+    checks,
+    resolve(bundleDir) === resolve(referencePath),
+    "publication.chrome_reference_path",
+    "chrome reference path must not resolve to the evaluated bundle path",
+    { actual: referencePath },
+  );
+  add(
+    checks,
+    !existsSync(referencePath) || !statSync(referencePath).isDirectory(),
+    "publication.chrome_reference_path.present",
+    "chrome reference path must exist as a directory",
+    { actual: referencePath },
+  );
+}
+
 function evaluateManifest(
   target: NormalizedQualityTarget,
   bundleDir: string,
   manifest: ResolvedTargetManifest | null | undefined,
+  targetHash: string,
   checks: QualityQaCheck[],
 ): string | null {
   if (!manifest) {
@@ -267,6 +295,17 @@ function evaluateManifest(
     expected: RESOLVED_TARGET_MANIFEST_SCHEMA,
     actual: manifest.schema,
   });
+  add(checks, manifest.target_id !== target.id, "manifest.target_id", "manifest target_id must match selected target", {
+    expected: target.id,
+    actual: manifest.target_id,
+  });
+  add(
+    checks,
+    manifest.target_hash !== targetHash,
+    "manifest.target_hash",
+    "manifest target_hash must match current target config",
+    { expected: targetHash, actual: manifest.target_hash ?? null },
+  );
 
   const citationExtraction = manifest.resolved_policy?.citations?.extraction;
   const expectedExtraction = target.citations.extraction;
@@ -569,8 +608,10 @@ function artifactHashes(bundleDir: string, rels: string[]): Record<string, strin
 export function evaluateQualityBundle(options: EvaluateQualityBundleOptions): QualityQaReport {
   const checks: QualityQaCheck[] = [];
   const { target, bundleDir, manifest = null } = options;
+  const targetHash = options.targetHash ?? hashQualityTarget(target);
   evaluateTargetShape(target, checks);
-  const manifestHash = evaluateManifest(target, bundleDir, manifest, checks);
+  evaluateDataOnlyChromeTarget(target, bundleDir, checks);
+  const manifestHash = evaluateManifest(target, bundleDir, manifest, targetHash, checks);
   const graph = loadBundleJson(bundleDir, "graph.json");
   const sidecar = loadBundleJson(bundleDir, "ontology/citations.json");
   const reconciliation = loadBundleJson(bundleDir, "reconciliation-candidates.json");
@@ -587,7 +628,7 @@ export function evaluateQualityBundle(options: EvaluateQualityBundleOptions): Qu
   return {
     schema: QA_REPORT_SCHEMA,
     target_id: target.id,
-    target_hash: options.targetHash ?? null,
+    target_hash: targetHash,
     manifest_hash: manifestHash,
     bundle_path: bundleDir,
     artifact_hashes: artifactHashes(bundleDir, target.publication.data_allowlist),
@@ -611,6 +652,10 @@ export function validatePrecomputedQaReportBinding(
   add(checks, report.manifest_hash !== current.manifest_hash, "qa_report.manifest_hash", "QA report manifest hash must match", {
     expected: current.manifest_hash,
     actual: report.manifest_hash,
+  });
+  add(checks, resolve(report.bundle_path) !== resolve(current.bundle_path), "qa_report.bundle_path", "QA report bundle_path must match", {
+    expected: current.bundle_path,
+    actual: report.bundle_path,
   });
   add(checks, canonicalJson(report.artifact_hashes) !== canonicalJson(current.artifact_hashes), "qa_report.artifact_hashes", "QA report artifact hashes must match");
   if (current.chrome) {
