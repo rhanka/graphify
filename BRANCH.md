@@ -28,10 +28,10 @@
 
 ## Lot 2 - Manifest And QA Evaluators
 
-- [ ] Add resolved target manifest model with structured artifact provenance and extraction units.
-- [ ] Add pure QA evaluators for manifest, graph counts, citation sidecar coverage, reconciliation completeness, data-only chrome tree hashes.
-- [ ] Add fixture tests for scratch provenance rejection, sidecar partial/stale rejection, truncated reconciliation response rejection, stale QA report hash rejection.
-- [ ] Gate: targeted vitest for QA evaluator tests and `npm run lint`.
+- [x] Add resolved target manifest model with structured artifact provenance and extraction units.
+- [x] Add pure QA evaluators for manifest, graph counts, citation sidecar coverage, reconciliation completeness, data-only chrome tree hashes.
+- [x] Add fixture tests for scratch provenance rejection, sidecar partial/stale rejection, truncated reconciliation response rejection, stale QA report hash rejection.
+- [x] Gate: targeted vitest for QA evaluator tests and `npm run lint`.
 
 ## Lot 3 - CLI Surface
 
