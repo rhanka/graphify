@@ -35,10 +35,10 @@
 
 ## Lot 3 - CLI Surface
 
-- [ ] Add `graphify qa --target <id> --bundle <path> [--config <path>] [--write-report] [--fail-on-error]`.
-- [ ] Emit deterministic JSON QA report and human-readable failure summary.
-- [ ] Add CLI tests for pass/fail exit behavior and report writing.
-- [ ] Gate: targeted vitest for CLI QA tests and `npm run lint`.
+- [x] Add `graphify qa --target <id> --bundle <path> [--config <path>] [--write-report] [--fail-on-error]`.
+- [x] Emit deterministic JSON QA report and human-readable failure summary.
+- [x] Add CLI tests for pass/fail exit behavior and report writing.
+- [x] Gate: targeted vitest for CLI QA tests and `npm run lint`.
 
 ## Lot 4 - Publication Preflight And Final Review
 
