@@ -15,16 +15,16 @@
 
 ## Lot 0 - Spec And Branch Plan
 
-- [ ] Commit validated EVOL spec and this branch plan.
-- [ ] Verify spec has two-pass xhigh validation log and implementation status.
-- [ ] Gate: `git diff --cached --stat` contains only `BRANCH.md` and `spec/SPEC_EVOL_TARGET_CONFIGURATION_QA.md`.
+- [x] Commit validated EVOL spec and this branch plan.
+- [x] Verify spec has two-pass xhigh validation log and implementation status.
+- [x] Gate: `git diff --cached --stat` contains only `BRANCH.md` and `spec/SPEC_EVOL_TARGET_CONFIGURATION_QA.md`.
 
 ## Lot 1 - Target Config And Contract Model
 
-- [ ] Add quality target types and target-only loader that can parse `quality.targets` without requiring `profile.path` or `inputs.corpus`.
-- [ ] Add structured citation extraction contract canonicalization and hash validation.
-- [ ] Add unit tests for target parsing, invalid target shape, contract hash mismatch, unknown/bounded citation mode, extraction-unit coverage.
-- [ ] Gate: targeted vitest for quality-target tests and `npm run lint`.
+- [x] Add quality target types and target-only loader that can parse `quality.targets` without requiring `profile.path` or `inputs.corpus`.
+- [x] Add structured citation extraction contract canonicalization and hash validation.
+- [x] Add unit tests for target parsing, invalid target shape, contract hash mismatch, unknown/bounded citation mode, extraction-unit coverage.
+- [x] Gate: targeted vitest for quality-target tests and `npm run lint`.
 
 ## Lot 2 - Manifest And QA Evaluators
 
