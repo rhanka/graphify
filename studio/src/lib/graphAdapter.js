@@ -788,6 +788,74 @@ export function candidateSubgraph(
 }
 
 /**
+ * EVOL 1.b: UNION of several reconciliation candidates' subgraphs, shown as a
+ * single PREVIEW of the post-merge result. Each selected pair {candidate_id,
+ * canonical_id} folds its candidate INTO its canonical (survivor); we union the
+ * depth-`hops` neighbourhoods of all anchors, then re-endpoint every edge onto
+ * the surviving canonical, drop self-loops created by the fold, and dedup
+ * parallel edges (by source|target|relation). This previews exactly what the
+ * graph becomes if the whole selection is validated — it does NOT mutate the
+ * graph (apply still posts the existing per-candidate accept_match patches,
+ * which fold into the same canonicals on rebuild). Returns { nodes, links, fold }.
+ */
+export function candidateUnionSubgraph(
+  graph,
+  pairs,
+  hops = RECON_SUBGRAPH_DEPTH,
+  { maxNodes = RECON_SUBGRAPH_MAX_NODES } = {},
+) {
+  const idx = indexNodes(graph);
+  const edges = graphEdges(graph);
+  const keep = new Set();
+  const fold = new Map(); // candidate_id -> canonical_id (survivor)
+  for (const p of pairs ?? []) {
+    const canon = p?.canonical_id;
+    const cand = p?.candidate_id;
+    if (canon != null && idx.has(canon)) keep.add(canon);
+    if (cand != null && idx.has(cand)) {
+      keep.add(cand);
+      if (canon != null && idx.has(canon)) fold.set(cand, canon);
+    }
+  }
+  const cap = Number.isFinite(maxNodes) ? Math.max(keep.size, maxNodes) : Infinity;
+  let frontier = new Set(keep);
+  for (let h = 0; h < Math.max(0, hops); h++) {
+    if (keep.size >= cap) break;
+    const next = new Set();
+    for (const e of edges) {
+      const s = e?.source, t = e?.target;
+      if (frontier.has(s) && t != null && idx.has(t) && !keep.has(t)) next.add(t);
+      if (frontier.has(t) && s != null && idx.has(s) && !keep.has(s)) next.add(s);
+    }
+    for (const n of next) {
+      if (keep.size >= cap) break;
+      keep.add(n);
+    }
+    frontier = next;
+    if (next.size === 0) break;
+  }
+  const rep = (id) => fold.get(id) ?? id;
+  // Folded candidates merge into their canonical, so they are not emitted as nodes.
+  const nodes = [...keep]
+    .filter((id) => !fold.has(id))
+    .map((id) => idx.get(id))
+    .filter(Boolean);
+  const seen = new Set();
+  const links = [];
+  for (const e of edges) {
+    if (!keep.has(e?.source) || !keep.has(e?.target)) continue;
+    const s = rep(e.source), t = rep(e.target);
+    if (s === t) continue; // self-loop created by the fold — drop it.
+    const rel = e.relation ?? e.relation_type ?? "";
+    const key = `${s} ${t} ${rel}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    links.push({ ...e, source: s, target: t });
+  }
+  return { nodes, links, fold };
+}
+
+/**
  * SVELTE-7: add a synthetic "reconciliation" edge between the two candidate
  * entities so the force layout pulls them side by side and the link is visible
  * (the twins usually have no direct edge). Marked `reconcile: true` and given a

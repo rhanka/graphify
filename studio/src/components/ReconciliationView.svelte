@@ -18,6 +18,7 @@
   import { buildPatchFromCandidate } from "../lib/reconciliation.js";
   import {
     candidateSubgraph,
+    candidateUnionSubgraph,
     buildScene,
     withReconcileEdge,
     attachReconLayout,
@@ -147,6 +148,20 @@
   // subgraph with the twins HELD FIXED at the centre, so the neighbours settle
   // AROUND the centred, side-by-side pair (a compact, centred, twinned cluster).
   const scene = $derived.by(() => {
+    // EVOL 1.b: when MORE THAN ONE candidate is ticked, the centre graph shows
+    // the UNION of the selected candidates' subgraphs (each folded into its
+    // canonical) — a live preview of the combined post-merge graph. A single (or
+    // zero) selection keeps the focused twin-pair view below.
+    const picked = filtered.filter((c) => selected.has(c.id));
+    if (picked.length > 1) {
+      const union = candidateUnionSubgraph(
+        graph,
+        picked.map((c) => ({ candidate_id: c.candidate_id, canonical_id: c.canonical_id })),
+        reconDepth,
+        { maxNodes: RECON_SUBGRAPH_MAX_NODES },
+      );
+      return attachReconLayout(buildScene(union, { showWeakLinks: true }));
+    }
     if (!active) return buildScene({ nodes: [], links: [] });
     // #4.1: expand each entity's neighbourhood to DEPTH reconDepth (default 3),
     // capped at RECON_SUBGRAPH_MAX_NODES nodes (fan-out cap, see candidateSubgraph).
@@ -189,7 +204,13 @@
     // Run the local layout (twins fixed) so neighbours arrange around the pair.
     return attachReconLayout({ ...linked, nodes });
   });
-  const selectedIds = $derived(active ? [active.candidate_id, active.canonical_id] : []);
+  // EVOL 1.b: in union mode (multi-select) the centre frames the surviving
+  // canonicals; otherwise it frames the focused twin pair.
+  const selectedIds = $derived.by(() => {
+    const picked = filtered.filter((c) => selected.has(c.id));
+    if (picked.length > 1) return [...new Set(picked.map((c) => c.canonical_id))];
+    return active ? [active.candidate_id, active.canonical_id] : [];
+  });
 
   function label(id) {
     const n = idx.get(id);
