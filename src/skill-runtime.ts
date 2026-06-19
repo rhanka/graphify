@@ -34,8 +34,7 @@ import {
   resolveCliInputScopeSelection,
   resolveConfiguredInputScopeSelection,
 } from "./input-scope.js";
-import { persistGraphWithCitations, toCypher, toGraphml, toHtml, toJson, toSvg, pushToNeo4j } from "./export.js";
-import { safeToHtml } from "./html-export.js";
+import { persistGraphWithCitations, toCypher, toGraphml, toJson, toSvg, pushToNeo4j } from "./export.js";
 import { extractWithDiagnostics } from "./extract.js";
 import {
   forEachTraversalNeighbor,
@@ -214,6 +213,37 @@ function getVersion(): string {
 
 function labelsPathForGraphOut(graphOut: string): string {
   return join(dirname(resolve(graphOut)), ".graphify_labels.json");
+}
+
+/**
+ * Emit the static Ontology Studio bundle into `<stateDir>/studio` (the visual
+ * output that replaced the former HTML graph export). Best-effort: a missing
+ * prebuilt studio SPA warns and is a no-op, so the skill pipeline never fails.
+ */
+async function emitSkillStaticStudio(stateDir: string): Promise<void> {
+  try {
+    const { buildStaticStudio, StudioSpaNotBuiltError } = await import("./studio-export.js");
+    try {
+      const result = buildStaticStudio({
+        stateDir,
+        outDir: join(stateDir, "studio"),
+        onWarning: (message) => console.warn(message),
+      });
+      console.log(`Static studio written to ${result.outDir} (open index.html via any static server).`);
+    } catch (err) {
+      if (err instanceof StudioSpaNotBuiltError) {
+        console.warn(`Static studio export skipped: ${err.message}`);
+        return;
+      }
+      console.warn(
+        `Static studio export skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      `Static studio export skipped: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 function mapToObject<V>(map: Map<number, V>): Record<string, V> {
@@ -1180,8 +1210,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--directed", "Build a directed graph (preserves source->target)")
     .option("--cached <path>", "Optional cached semantic JSON")
     .option("--semantic-new <path>", "Optional fresh semantic JSON")
-    .option("--html-out <path>", "Optional graph.html output path")
-    .action((opts) => {
+    .action(async (opts) => {
       const root = resolve(opts.root);
       const detection = readJson<DetectionResult>(opts.detect);
       const ast = ensureExtractionShape(readJson<Partial<Extraction>>(opts.ast));
@@ -1227,13 +1256,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       writeFileSync(resolve(opts.reportOut), analyzed.report, "utf-8");
       writeJson(opts.analysisOut, analyzed.analysis);
       persistCommunityLabels(analyzed.labels, labelsPath);
-      if (opts.htmlOut) {
-        safeToHtml(G, analyzed.communities, resolve(opts.htmlOut), {
-          communityLabels: analyzed.labels,
-        }, {
-          onWarning: (message) => console.warn(message),
-        });
-      }
+      await emitSkillStaticStudio(dirname(resolve(opts.graphOut)));
       saveManifest(portableDetection.files, join(dirname(resolve(opts.graphOut)), "manifest.json"), { root });
       const cost = updateCostFile(extraction, portableDetection, opts.costOut);
 
@@ -1255,8 +1278,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--directed", "Build a directed graph (preserves source->target)")
     .option("--cached <path>", "Optional cached semantic JSON")
     .option("--semantic-new <path>", "Optional fresh semantic JSON")
-    .option("--html-out <path>", "Optional graph.html output path")
-    .action((opts) => {
+    .action(async (opts) => {
       const root = resolve(opts.root);
       const detection = readJson<DetectionResult>(opts.detect);
       const ast = ensureExtractionShape(readJson<Partial<Extraction>>(opts.ast));
@@ -1317,13 +1339,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       writeFileSync(resolve(opts.reportOut), analyzed.report, "utf-8");
       writeJson(opts.analysisOut, analyzed.analysis);
       persistCommunityLabels(analyzed.labels, labelsPath);
-      if (opts.htmlOut) {
-        safeToHtml(mergedGraph, analyzed.communities, resolve(opts.htmlOut), {
-          communityLabels: analyzed.labels,
-        }, {
-          onWarning: (message) => console.warn(message),
-        });
-      }
+      await emitSkillStaticStudio(dirname(resolve(opts.graphOut)));
       saveManifest(portableDetection.files, join(dirname(resolve(opts.graphOut)), "manifest.json"), { root });
       const cost = updateCostFile(extraction, portableDetection, opts.costOut);
 
@@ -1382,8 +1398,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .requiredOption("--report-out <path>")
     .option("--directed", "Build a directed graph (preserves source->target)")
     .option("--graph-out <path>")
-    .option("--html-out <path>")
-    .action((opts) => {
+    .action(async (opts) => {
       const root = resolve(opts.root);
       const extraction = makeExtractionPortable(ensureExtractionShape(readJson<Partial<Extraction>>(opts.extract)), root);
       const detection = makeDetectionPortable(readJson<DetectionResult>(opts.detect), root);
@@ -1419,33 +1434,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       writeFileSync(resolve(opts.reportOut), report, "utf-8");
       if (opts.graphOut) {
         persistGraphWithCitations(G, communities, resolve(opts.graphOut), { communityLabels: labels });
-      }
-      if (opts.htmlOut) {
-        safeToHtml(G, communities, resolve(opts.htmlOut), { communityLabels: labels }, {
-          onWarning: (message) => console.warn(message),
-        });
+        await emitSkillStaticStudio(dirname(resolve(opts.graphOut)));
       }
       writeJson(opts.analysis, analysis);
       console.log("Labeled artifacts updated");
-    });
-
-  program
-    .command("export-html")
-    .requiredOption("--extract <path>")
-    .requiredOption("--analysis <path>")
-    .option("--labels <path>")
-    .requiredOption("--out <path>")
-    .option("--directed", "Build a directed graph (preserves source->target)")
-    .action((opts) => {
-      const extraction = ensureExtractionShape(readJson<Partial<Extraction>>(opts.extract));
-      const analysis = readJson<AnalysisFile>(opts.analysis);
-      const labels = opts.labels ? objectToStringMap(readJson<Record<string, string>>(opts.labels)) : objectToStringMap(analysis.labels);
-      const communities = new Map<number, string[]>(
-        Object.entries(analysis.communities).map(([key, value]) => [Number.parseInt(key, 10), value]),
-      );
-      const G = buildFromJson(extraction, { directed: shouldBuildDirected(opts) });
-      toHtml(G, communities, resolve(opts.out), { communityLabels: labels });
-      console.log("graph.html written - open in any browser, no server needed");
     });
 
   program
@@ -1636,8 +1628,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .requiredOption("--graph-out <path>")
     .requiredOption("--report-out <path>")
     .requiredOption("--analysis-out <path>")
-    .option("--html-out <path>")
-    .action((opts) => {
+    .action(async (opts) => {
       const root = resolve(opts.root);
       const G = makeGraphPortable(loadGraph(opts.graph), root);
       const labelsPath = labelsPathForGraphOut(opts.graphOut);
@@ -1660,7 +1651,6 @@ export async function main(argv: string[] = process.argv): Promise<void> {
         resolve(opts.reportOut),
         resolve(opts.analysisOut),
         labelsPath,
-        ...(opts.htmlOut ? [resolve(opts.htmlOut)] : []),
       ]) {
         mkdirSync(dirname(target), { recursive: true });
       }
@@ -1674,13 +1664,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       writeFileSync(resolve(opts.reportOut), analyzed.report, "utf-8");
       writeJson(opts.analysisOut, analyzed.analysis);
       persistCommunityLabels(analyzed.labels, labelsPath);
-      if (opts.htmlOut) {
-        safeToHtml(G, analyzed.communities, resolve(opts.htmlOut), {
-          communityLabels: analyzed.labels,
-        }, {
-          onWarning: (message) => console.warn(message),
-        });
-      }
+      await emitSkillStaticStudio(dirname(resolve(opts.graphOut)));
       console.log(`Re-clustered: ${analyzed.communities.size} communities`);
     });
 

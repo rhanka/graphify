@@ -581,11 +581,9 @@ export interface OntologyMapping {
 }
 
 /**
- * Track C-3.5 — vis.js shape names valid for the HTML export visual
- * encoding override carried by a profile's `node_types.*.visual_encoding`.
- * Keep this list in sync with {@link src/export.ts}'s inferNodeShape /
- * resolveNodeShape so the legend, the override, and the inference all
- * speak the same vocabulary.
+ * Track C-3.5 — node shape names valid for the visual encoding override
+ * carried by a profile's `node_types.*.visual_encoding`. Consumed by the
+ * Studio scene builder (`studio-scene.ts`) to drive per-node-type glyphs.
  */
 export type OntologyVisualEncodingShape =
   | "dot"
