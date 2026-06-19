@@ -644,10 +644,17 @@
     padding: 0 0.4rem; min-width: 1.4rem; text-align: center;
   }
 
-  .recon-rail-list { list-style: none; margin: 0; padding: 0.15rem 0.5rem; display: grid; gap: 2px; }
+  /* EVOL 1.c (real root cause): the grid had NO grid-template-columns, so its
+     implicit `auto` column sized to the widest row's content and OVERFLOWED the
+     rail — pushing the score % bubble off-screen (the pair's overflow:hidden
+     below was necessary but not sufficient). minmax(0,1fr) pins the column to the
+     container width; min-width:0 on the flex item lets the row shrink. Together
+     with the pair clip, long Character labels ellipsise and the % stays visible. */
+  .recon-rail-list { list-style: none; margin: 0; padding: 0.15rem 0.5rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
   /* #4 (d): row = checkbox + clickable body. */
   .recon-rail-item {
     display: flex; align-items: stretch; gap: 0.35rem;
+    min-width: 0;
     border: 1px solid transparent;
     border-radius: var(--st-radius-sm, 4px);
   }
