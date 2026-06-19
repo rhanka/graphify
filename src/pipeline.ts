@@ -15,7 +15,7 @@ import { cluster, scoreAll } from "./cluster.js";
 import { godNodes, surprisingConnections, suggestQuestions } from "./analyze.js";
 import { generate } from "./report.js";
 import { backupIfProtected, persistGraphWithCitations } from "./export.js";
-import { buildStaticStudio, StudioSpaNotBuiltError } from "./studio-export.js";
+import { buildStaticStudio, StudioSpaNotBuiltError, removeLegacyGraphViz } from "./studio-export.js";
 import { extractWithDiagnostics, type ExtractionDiagnostic } from "./extract.js";
 import { buildCodeFileNodeIdMap, extractGit, mergeExtractions } from "./extract-git.js";
 import { resolveGraphifyPaths } from "./paths.js";
@@ -266,6 +266,8 @@ export async function buildProject(
         onWarning: (message) => warnings.push({ code: "studio_skipped", message }),
       });
       studioDir = result.outDir;
+      // Migration: erase a stale legacy graph viz left by an older graphify version.
+      removeLegacyGraphViz(paths.stateDir);
     } catch (err) {
       const message =
         err instanceof StudioSpaNotBuiltError

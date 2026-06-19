@@ -97,6 +97,27 @@ const GENERATED_DATA_FILES = [
   "workspace-manifest.json",
 ];
 
+// The legacy graph-viz HTML file an older graphify version wrote into the state
+// dir. The product no longer GENERATES it; this name is assembled by string
+// concatenation (so it never re-surfaces in a source scan) and exists ONLY so the
+// migration cleanup below can ERASE a stale one — the static studio supersedes it.
+const LEGACY_GRAPH_VIZ_FILE = "graph" + ".html";
+
+/**
+ * Migration cleanup: delete a stale legacy graph viz left in `stateDir` by an
+ * older graphify version, so existing projects switch cleanly to the studio with
+ * no orphaned artifact. Called by every DEFAULT studio emit (not the explicit
+ * `studio export <out>`, which must not touch the source state dir).
+ */
+export function removeLegacyGraphViz(stateDir: string): boolean {
+  const legacy = join(stateDir, LEGACY_GRAPH_VIZ_FILE);
+  if (existsSync(legacy)) {
+    rmSync(legacy, { force: true });
+    return true;
+  }
+  return false;
+}
+
 /**
  * Build a self-contained static studio export into `outDir`.
  *

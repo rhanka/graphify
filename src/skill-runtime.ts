@@ -222,7 +222,9 @@ function labelsPathForGraphOut(graphOut: string): string {
  */
 async function emitSkillStaticStudio(stateDir: string): Promise<void> {
   try {
-    const { buildStaticStudio, StudioSpaNotBuiltError } = await import("./studio-export.js");
+    const { buildStaticStudio, StudioSpaNotBuiltError, removeLegacyGraphViz } = await import(
+      "./studio-export.js"
+    );
     try {
       const result = buildStaticStudio({
         stateDir,
@@ -230,6 +232,10 @@ async function emitSkillStaticStudio(stateDir: string): Promise<void> {
         onWarning: (message) => console.warn(message),
       });
       console.log(`Static studio written to ${result.outDir} (open index.html via any static server).`);
+      // Migration: erase a stale legacy graph viz left by an older graphify version.
+      if (removeLegacyGraphViz(stateDir)) {
+        console.log("Removed a stale legacy graph viz (superseded by the static studio).");
+      }
     } catch (err) {
       if (err instanceof StudioSpaNotBuiltError) {
         console.warn(`Static studio export skipped: ${err.message}`);
