@@ -18,6 +18,7 @@
   import SelectionPanel from "./components/SelectionPanel.svelte";
   import WorkspaceShell from "./components/WorkspaceShell.svelte";
   import {
+    fetchClassHierarchies,
     fetchEntity,
     fetchGraph,
     fetchModelsManifest,
@@ -31,6 +32,7 @@
     applyWeakFilter,
     resolveSelectedIds,
   } from "./lib/graphAdapter.js";
+  import { injectOntologyClassNodes } from "./lib/classNodes.js";
   import { loadWorkspace } from "./lib/sceneLoader.js";
   import {
     createDefaultViewerState,
@@ -43,6 +45,7 @@
     setActiveView,
     setQuery,
     setShowWeakLinks,
+    setShowOntologyClasses,
   } from "./lib/viewerState.js";
 
   const EMPTY_GRAPH = { nodes: [], links: [] };
@@ -58,6 +61,15 @@
   let loadError = $state(null);
   let viewerState = $state(createDefaultViewerState());
   let entityCache = $state({});
+  // EVOL 2.a: the class-hierarchies.json artifact (schema
+  // graphify_ontology_class_hierarchies_v1) backing the "Show ontology classes"
+  // toggle. Lazily fetched once (like models.json); null until loaded / when
+  // absent, in which case the toggle injects nothing. $state.raw — only ever
+  // reassigned in bulk, never mutated in place.
+  let classHierarchies = $state.raw(null);
+  // The class-injection granularity ("leaf" = leaf classes + member edges;
+  // "all" = every class + subclass_of). v1 ships "leaf"; 2.b/2.d will drive it.
+  const ontologyClassLevels = "leaf";
 
   // ----- in-UI model switcher ----------------------------------------------
   // The store holds the manifest + active model; api.js resolves static fetches
@@ -73,10 +85,24 @@
   // selectedIds/focusId (no re-layout). The weak-link toggle re-filters the
   // scene WITHOUT the raw graph (ÉTAPE 1b): on the light scene via
   // applyWeakFilter, or — in legacy fallback — by rebuilding from the graph.
+  //
+  // EVOL 2.a: when "Show ontology classes" is ON we cannot reuse the light
+  // sceneData fast-path — synthetic class nodes + has_instance edges must enter
+  // BEFORE buildScene so degrees / god-class / the weak filter all operate on
+  // the displayed topology. So we inject into the raw graph and rebuild. The
+  // injection is a no-op (returns the graph unchanged) when the artifact is
+  // absent or the graph has not hydrated yet, so this stays robust during load.
+  const ontologyGraph = $derived(
+    viewerState.options.showOntologyClasses
+      ? injectOntologyClassNodes(graph, classHierarchies, { levels: ontologyClassLevels })
+      : graph,
+  );
   const scene = $derived(
-    sceneData
-      ? applyWeakFilter(sceneData, viewerState.options.showWeakLinks)
-      : buildScene(graph, { showWeakLinks: viewerState.options.showWeakLinks }),
+    viewerState.options.showOntologyClasses
+      ? buildScene(ontologyGraph, { showWeakLinks: viewerState.options.showWeakLinks })
+      : sceneData
+        ? applyWeakFilter(sceneData, viewerState.options.showWeakLinks)
+        : buildScene(graph, { showWeakLinks: viewerState.options.showWeakLinks }),
   );
   // Graph highlight = every entity of every selected type/community + the
   // directly-selected entities (R8-3.B).
@@ -109,6 +135,12 @@
   function handleToggleWeak(value) {
     viewerState = setShowWeakLinks(viewerState, value);
   }
+  function handleToggleOntologyClasses(value) {
+    viewerState = setShowOntologyClasses(viewerState, value);
+    // Lazily load the artifact the first time the toggle is switched on; the
+    // derived scene re-runs once it lands (no-op injection until then).
+    if (value) void ensureClassHierarchies();
+  }
   function handleSetView(view) {
     viewerState = setActiveView(viewerState, view);
   }
@@ -117,6 +149,16 @@
     if (!id || entityCache[id]) return;
     const data = await fetchEntity(id);
     if (data) entityCache = { ...entityCache, [id]: data };
+  }
+
+  // EVOL 2.a: fetch the class-hierarchies artifact at most once. A null result
+  // (absent artifact) is cached as "attempted" so we never re-fetch; the toggle
+  // then simply injects nothing. Reset on a model switch (per-model artifact).
+  let classHierarchiesFetched = false;
+  async function ensureClassHierarchies() {
+    if (classHierarchiesFetched) return;
+    classHierarchiesFetched = true;
+    classHierarchies = await fetchClassHierarchies();
   }
 
   /**
@@ -158,9 +200,15 @@
     // client state before re-loading.
     __resetEntitiesIndexCache();
     entityCache = {};
+    // The class-hierarchies artifact is per-model; drop it so the next toggle-on
+    // re-fetches under the new model's base.
+    classHierarchies = null;
+    classHierarchiesFetched = false;
     viewerState = clearSelection(viewerState);
     try {
       await loadActiveModel();
+      // Re-fetch eagerly if the toggle is currently on (otherwise it stays lazy).
+      if (viewerState.options.showOntologyClasses) await ensureClassHierarchies();
     } finally {
       switching = false;
     }
@@ -272,11 +320,13 @@
             query={viewerState.query}
             selection={viewerState.selection}
             showWeakLinks={viewerState.options.showWeakLinks}
+            showOntologyClasses={viewerState.options.showOntologyClasses}
             onToggleType={handleToggleType}
             onToggleCommunity={handleToggleCommunity}
             onToggleEntity={handleToggleEntity}
             onSetQuery={handleSetQuery}
             onToggleWeak={handleToggleWeak}
+            onToggleOntologyClasses={handleToggleOntologyClasses}
           />
         </div>
         <div class="col col-center">

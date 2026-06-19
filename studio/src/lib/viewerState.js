@@ -8,7 +8,7 @@
  *               on the left. Each list toggles independently (click = add/remove).
  *   focusId   : the last individually-picked entity → gets the "double" emphasis
  *               (selection highlight + focus shadow) and opens its detail.
- *   options   : { showWeakLinks } — graph options (ex-"Facets").
+ *   options   : { showWeakLinks, showOntologyClasses } — graph options (ex-"Facets").
  *   query     : free-text filter for the Entities list.
  *   activeView: "workspace" | "reconciliation".
  *
@@ -22,7 +22,7 @@ export function createDefaultViewerState() {
     query: "",
     selection: { types: [], communities: [], entities: [] },
     focusId: null,
-    options: { showWeakLinks: true },
+    options: { showWeakLinks: true, showOntologyClasses: false },
   };
 }
 
@@ -47,6 +47,7 @@ export function normalizeViewerState(partial = {}) {
   next.focusId = typeof next.focusId === "string" && next.focusId ? next.focusId : null;
   if (next.activeView !== "reconciliation") next.activeView = "workspace";
   next.options.showWeakLinks = Boolean(next.options.showWeakLinks);
+  next.options.showOntologyClasses = Boolean(next.options.showOntologyClasses);
   // The focus must be a selected entity; drop it if it was deselected.
   if (next.focusId && !next.selection.entities.includes(next.focusId)) next.focusId = null;
   return next;
@@ -135,5 +136,12 @@ export function setShowWeakLinks(state, value) {
   return normalizeViewerState({
     ...state,
     options: { ...state.options, showWeakLinks: Boolean(value) },
+  });
+}
+
+export function setShowOntologyClasses(state, value) {
+  return normalizeViewerState({
+    ...state,
+    options: { ...state.options, showOntologyClasses: Boolean(value) },
   });
 }

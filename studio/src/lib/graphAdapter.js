@@ -75,6 +75,9 @@ const NODE_PROFILE_FIELDS = [
   "hierarchy_ids",
   "badges",
   "documents",
+  // EVOL 2.a: synthetic ontology CLASS node passthrough (injectOntologyClassNodes).
+  "ontology_node_kind",
+  "ontology_class_id",
 ];
 
 const EDGE_PROFILE_FIELDS = [
@@ -87,6 +90,8 @@ const EDGE_PROFILE_FIELDS = [
   "evidence_refs",
   "hierarchy_id",
   "structural",
+  // EVOL 2.a: synthetic ontology class edge kind (has_instance / subclass_of).
+  "ontology_edge_kind",
 ];
 
 export function nodeLabel(node) {
@@ -146,6 +151,9 @@ const TYPE_SHAPE = {
   Saga: "hexagon",
   Author: "star",
   Translator: "triangle",
+  // EVOL 2.a: synthetic ontology CLASS nodes render as labelled rounded boxes
+  // (the class name sits inside the box), distinct from data-driven entity hubs.
+  OntologyClass: "roundedbox",
 };
 
 /**
@@ -182,6 +190,11 @@ const REL_DASH = {
   used_in: "long-dash",
   uses_method: "long-dash",
   involves: "long-dash",
+  // EVOL 2.a: ontology class structure (synthetic). subclass_of = the class
+  // tree skeleton (solid); has_instance = a class gathering its members (dotted
+  // anchoring, like other membership/structural-anchoring relations).
+  subclass_of: "solid",
+  has_instance: "dotted",
 };
 export function dashForRelation(relation) {
   if (!relation) return undefined;
@@ -227,11 +240,19 @@ export function isStrongEdge(edge) {
   return conf === "EXTRACTED";
 }
 
-/** Undirected degree per node id, used to scale node radius. */
+/**
+ * Undirected degree per node id, used to scale node radius and elect the
+ * god-class box. SYNTHETIC structural edges (EVOL 2.a class membership /
+ * subclass edges, flagged `edge.structural`) are EXCLUDED: injecting ontology
+ * class nodes must never change which entity is the god-class box nor inflate an
+ * entity's degree-driven radius. (The class nodes themselves therefore size to
+ * the degree floor, as intended — their salience comes from the box label.)
+ */
 export function computeDegrees(nodes, edges) {
   const degree = new Map();
   for (const node of nodes) degree.set(node.id, 0);
   for (const edge of edges) {
+    if (edge.structural) continue;
     if (degree.has(edge.source)) degree.set(edge.source, degree.get(edge.source) + 1);
     if (degree.has(edge.target)) degree.set(edge.target, degree.get(edge.target) + 1);
   }

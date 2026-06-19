@@ -26,11 +26,13 @@
     query = "",
     selection = { types: [], communities: [], entities: [] },
     showWeakLinks = true,
+    showOntologyClasses = false,
     onToggleType,
     onToggleCommunity,
     onToggleEntity,
     onSetQuery,
     onToggleWeak,
+    onToggleOntologyClasses,
   } = $props();
 
   const typeList = $derived(groupCounts(graph, nodeType));
@@ -219,6 +221,14 @@
         onchange={(e) => onToggleWeak?.(e.currentTarget.checked)}
       />
       Show weak (inferred) links
+    </label>
+    <label class="rail-facet">
+      <input
+        type="checkbox"
+        checked={showOntologyClasses}
+        onchange={(e) => onToggleOntologyClasses?.(e.currentTarget.checked)}
+      />
+      Show ontology classes
     </label>
   </Collapsible>
 </aside>
