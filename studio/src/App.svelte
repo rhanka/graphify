@@ -32,7 +32,7 @@
     applyWeakFilter,
     resolveSelectedIds,
   } from "./lib/graphAdapter.js";
-  import { injectOntologyClassNodes } from "./lib/classNodes.js";
+  import { injectOntologyClassNodes, applyOntologyCollapse } from "./lib/classNodes.js";
   import { loadWorkspace } from "./lib/sceneLoader.js";
   import {
     createDefaultViewerState,
@@ -46,6 +46,8 @@
     setQuery,
     setShowWeakLinks,
     setShowOntologyClasses,
+    toggleCollapseClass,
+    expandAllClasses,
   } from "./lib/viewerState.js";
 
   const EMPTY_GRAPH = { nodes: [], links: [] };
@@ -67,9 +69,12 @@
   // absent, in which case the toggle injects nothing. $state.raw — only ever
   // reassigned in bulk, never mutated in place.
   let classHierarchies = $state.raw(null);
-  // The class-injection granularity ("leaf" = leaf classes + member edges;
-  // "all" = every class + subclass_of). v1 ships "leaf"; 2.b/2.d will drive it.
-  const ontologyClassLevels = "leaf";
+  // EVOL 2.b/2.d: the class-injection granularity is "all" — EVERY class (not
+  // just leaves) is injected so that intermediate super-classes exist as collapse
+  // HANDLES (click a class node to fold its subtree). With an empty collapsed set
+  // this is the 2.a display plus the inter-class subclass_of skeleton; the
+  // collapse pass below only ever does work once a class is folded.
+  const ontologyClassLevels = "all";
 
   // ----- in-UI model switcher ----------------------------------------------
   // The store holds the manifest + active model; api.js resolves static fetches
@@ -97,9 +102,20 @@
       ? injectOntologyClassNodes(graph, classHierarchies, { levels: ontologyClassLevels })
       : graph,
   );
+  // EVOL 2.b/2.d: once one or more classes are folded, collapse the injected
+  // graph (re-endpoint edges to the nearest visible ancestor, fold the subtree)
+  // BEFORE buildScene so degrees / god-class / the weak filter all operate on the
+  // collapsed topology. An empty collapsed set returns the graph unchanged.
+  const collapsedGraph = $derived(
+    viewerState.options.showOntologyClasses && viewerState.options.collapsedClassIds.length > 0
+      ? applyOntologyCollapse(ontologyGraph, classHierarchies, {
+          collapsedClassIds: viewerState.options.collapsedClassIds,
+        })
+      : ontologyGraph,
+  );
   const scene = $derived(
     viewerState.options.showOntologyClasses
-      ? buildScene(ontologyGraph, { showWeakLinks: viewerState.options.showWeakLinks })
+      ? buildScene(collapsedGraph, { showWeakLinks: viewerState.options.showWeakLinks })
       : sceneData
         ? applyWeakFilter(sceneData, viewerState.options.showWeakLinks)
         : buildScene(graph, { showWeakLinks: viewerState.options.showWeakLinks }),
@@ -113,13 +129,31 @@
   function handleToggleCommunity(community) {
     viewerState = toggleCommunity(viewerState, community);
   }
+  // EVOL 2.b/2.d: a click on a CLASS node folds/unfolds its subtree instead of
+  // selecting it as an entity. We branch on the displayed node's kind (the scene
+  // carries ontology_node_kind through from injectOntologyClassNodes).
+  function sceneNodeKind(id) {
+    return scene?.nodes?.find((n) => n.id === id)?.ontology_node_kind ?? null;
+  }
   function handleToggleEntity(id) {
+    if (sceneNodeKind(id) === "class") {
+      viewerState = toggleCollapseClass(viewerState, id);
+      return;
+    }
     viewerState = toggleEntity(viewerState, id);
     if (viewerState.focusId) void ensureEntity(viewerState.focusId);
   }
   function handleFocusEntity(id) {
+    // Double-click on a class node = collapse toggle too (no entity detail).
+    if (sceneNodeKind(id) === "class") {
+      viewerState = toggleCollapseClass(viewerState, id);
+      return;
+    }
     viewerState = focusEntityAction(viewerState, id);
     void ensureEntity(id);
+  }
+  function handleExpandAllClasses() {
+    viewerState = expandAllClasses(viewerState);
   }
   function handleSetFocus(id) {
     // Expand/collapse the right-column entity detail (null = collapse).
@@ -321,12 +355,14 @@
             selection={viewerState.selection}
             showWeakLinks={viewerState.options.showWeakLinks}
             showOntologyClasses={viewerState.options.showOntologyClasses}
+            collapsedClassCount={viewerState.options.collapsedClassIds.length}
             onToggleType={handleToggleType}
             onToggleCommunity={handleToggleCommunity}
             onToggleEntity={handleToggleEntity}
             onSetQuery={handleSetQuery}
             onToggleWeak={handleToggleWeak}
             onToggleOntologyClasses={handleToggleOntologyClasses}
+            onExpandAllClasses={handleExpandAllClasses}
           />
         </div>
         <div class="col col-center">
