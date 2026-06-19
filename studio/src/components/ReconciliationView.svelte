@@ -223,6 +223,9 @@
     stale = Boolean(res?.stale);
     graphHash = res?.graph_hash ?? "";
     profileHash = res?.profile_hash ?? "";
+    // EVOL 1.a: pre-select ALL candidates by default (was: none) so the operator
+    // starts from "validate everything" and unticks exceptions, not the reverse.
+    selected = new SvelteSet(candidates.map((c) => c.id));
     loaded = true;
     if (!activeId && candidates.length) activeId = candidates[0].id;
   }
@@ -649,9 +652,14 @@
   }
   .recon-rail-row:hover { background: var(--st-semantic-surface-subtle, #f8fafc); }
   /* #4 (c): two entities, two lines. */
-  .recon-rail-pair { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  /* EVOL 1.c: the pair MUST clip — min-width:0 ALONE is not enough because, as a
+     column flex container, its min-content width is the widest nowrap line, which
+     pushes the score % bubble out of view (seen on long Character names). Adding
+     overflow:hidden forces min-content to 0 so the pair shrinks and each line
+     ellipsises within the available flex width, keeping the % bubble visible. */
+  .recon-rail-pair { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; overflow: hidden; }
   .recon-rail-line {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
     font-size: 0.82rem; line-height: 1.25;
   }
   .recon-rail-canon { color: var(--st-semantic-text-secondary, #475569); font-size: 0.78rem; }
