@@ -30,6 +30,7 @@
   import {
     buildScene,
     applyWeakFilter,
+    attachForceLayout,
     resolveSelectedIds,
   } from "./lib/graphAdapter.js";
   import { injectOntologyClassNodes, applyOntologyCollapse } from "./lib/classNodes.js";
@@ -115,7 +116,11 @@
   );
   const scene = $derived(
     viewerState.options.showOntologyClasses
-      ? buildScene(collapsedGraph, { showWeakLinks: viewerState.options.showWeakLinks })
+      ? // EVOL 2.a/2.b: the class/collapse scene is rebuilt from graph.json (no
+        // positions) — attach a force layout so it doesn't render as a ring.
+        attachForceLayout(
+          buildScene(collapsedGraph, { showWeakLinks: viewerState.options.showWeakLinks }),
+        )
       : sceneData
         ? applyWeakFilter(sceneData, viewerState.options.showWeakLinks)
         : buildScene(graph, { showWeakLinks: viewerState.options.showWeakLinks }),

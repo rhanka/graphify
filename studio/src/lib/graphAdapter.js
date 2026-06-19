@@ -1046,6 +1046,39 @@ export function attachReconLayout(scene, options = {}) {
   return { ...scene, nodes };
 }
 
+/**
+ * EVOL 2.a/2.b: run a force layout over a scene that carries NO precomputed
+ * positions. The default workspace renders `scene.json` (build-time positions),
+ * but the ontology class-display / collapse views rebuild the scene from
+ * `graph.json` (no x/y), and GraphCanvas renders static positions (no live sim) —
+ * so without this the renderer falls back to a degenerate ring. Iterations scale
+ * DOWN with node count so a ~2k-node toggle stays responsive.
+ */
+export function attachForceLayout(scene, options = {}) {
+  if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length === 0) return scene;
+  const n = scene.nodes.length;
+  const width = finiteNumber(options.width) ? options.width : Math.max(1200, Math.sqrt(n) * 42);
+  const height = finiteNumber(options.height) ? options.height : Math.max(900, Math.sqrt(n) * 32);
+  const iterations = finiteNumber(options.iterations)
+    ? options.iterations
+    : n > 1500 ? 90 : n > 600 ? 130 : 180;
+  const positions = computeLayout(
+    scene.nodes.map((node) => ({
+      id: node.id,
+      fx: finiteNumber(node.fx) ? node.fx : undefined,
+      fy: finiteNumber(node.fy) ? node.fy : undefined,
+    })),
+    scene.edges ?? [],
+    { iterations, width, height },
+  );
+  const byId = new Map(positions.map((p) => [p.id, p]));
+  const nodes = scene.nodes.map((node) => {
+    const p = byId.get(node.id);
+    return p ? { ...node, x: p.x, y: p.y } : node;
+  });
+  return { ...scene, nodes };
+}
+
 // ---- Selection resolution (R8-3) -----------------------------------------
 
 /** Entities of a given ontology type: [{ id, label }], sorted by label. */
