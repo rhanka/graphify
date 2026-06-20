@@ -289,7 +289,6 @@ export interface GraphifyLlmExecutionPolicy {
 
 export interface GraphifyOutputPolicy {
   state_dir?: string;
-  write_html?: boolean;
   write_wiki?: boolean;
   write_profile_report?: boolean;
   ontology?: GraphifyProjectOntologyOutputPolicy;
@@ -431,7 +430,6 @@ export interface NormalizedLlmExecutionPolicy {
 
 export interface NormalizedOutputPolicy {
   state_dir: string;
-  write_html: boolean;
   write_wiki: boolean;
   write_profile_report: boolean;
   ontology: NormalizedProjectOntologyOutputPolicy;
@@ -606,9 +604,14 @@ export type OntologyVisualEncodingBorder = "normal" | "bold";
 
 export interface OntologyVisualEncoding {
   shape?: OntologyVisualEncodingShape;
-  /** "#RRGGBB" or "#RRGGBBAA" hex color used for the node border (and
-   *  background for non-outlined shapes). Validated by
-   *  validateOntologyProfile. */
+  /**
+   * "#RRGGBB" or "#RRGGBBAA" hex color. NOTE: INERT in the static studio — the
+   * studio renderer colors nodes by community/group (categorical palette) BY
+   * DESIGN, not per-node-type. This field is still format-validated by
+   * validateOntologyProfile (so a malformed value is flagged) but is NOT
+   * consumed by the scene builder / renderer. Kept for forward-compat / other
+   * consumers; `shape` / `fill` / `border` are the encodings the studio honors.
+   */
   color_hex?: string;
   /** Fill variant (default "solid"). Additive: absent keeps today's render. */
   fill?: OntologyVisualEncodingFill;
@@ -621,7 +624,11 @@ export interface OntologyNodeType {
   registry?: string;
   source_backed?: boolean;
   status_policy?: string;
-  /** Track C-3.5: per-node-type visual encoding override for HTML export. */
+  /**
+   * Per-node-type visual encoding override consumed by the static studio scene
+   * builder (`studio-scene.ts`): `shape` / `fill` / `border` drive the glyph.
+   * (`color_hex` is accepted + format-validated but inert — see above.)
+   */
   visual_encoding?: OntologyVisualEncoding;
 }
 

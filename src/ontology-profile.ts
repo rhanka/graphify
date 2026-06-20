@@ -324,6 +324,9 @@ export function validateOntologyProfile(profile: OntologyProfile): string[] {
         );
       }
     }
+    // color_hex is INERT in the static studio (the renderer colors by
+    // community/group, not per-node-type) but is still FORMAT-validated so a
+    // malformed value is flagged. See OntologyVisualEncoding.color_hex.
     if (ve.color_hex !== undefined) {
       const color = String(ve.color_hex);
       if (!VISUAL_ENCODING_COLOR_HEX_REGEX.test(color)) {
