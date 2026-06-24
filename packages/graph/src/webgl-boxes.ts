@@ -539,8 +539,12 @@ export function buildTextInstances(draws: BoxDraw[], atlas: BuiltAtlas): number[
     if (!d.label) continue;
     const entry = atlas.entries.get(atlasKey(d.label, d.fontPx));
     if (!entry) continue;
+    // Snap the text-quad centre to the device-pixel grid so the atlas cell
+    // (rasterized at integer device px) maps ~1:1 to screen texels, keeping the
+    // glyph edges crisp instead of LINEAR-blurred across a half-pixel offset —
+    // the same crispness Canvas2D's fillText gets by rasterizing in place.
     out.push(
-      d.centerX, d.centerY,
+      Math.round(d.centerX), Math.round(d.centerY),
       entry.width, entry.height,
       entry.uv[0], entry.uv[1], entry.uv[2], entry.uv[3],
       r, g, b, d.alpha,
