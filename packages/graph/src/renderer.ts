@@ -468,25 +468,37 @@ function cssDarkenedColor(
 }
 
 /**
- * Build a box-label `measureText` service for the WebGL edge path so an edge
- * clipping to a BOX endpoint stops at the SAME rect border Canvas2D draws (E5).
- * Uses a throwaway offscreen 2D canvas (OffscreenCanvas or a detached <canvas>)
- * with a per-call font + text cache. Returns `null` in non-DOM environments —
- * the edge path then falls back to the empty-collapse box rect (box-label clip
- * parity finalises with the box glyph in Phase 4). NEVER touches the render
- * canvas (a canvas holds one context type — a 2D ctx there would break WebGL).
+ * Build a box-label `measureText` service for the WebGL box + edge paths so the
+ * box WIDTH (#199), the box-text atlas, and an edge clipping to a BOX endpoint
+ * (E5) all stop at the SAME rect border Canvas2D draws. Returns `null` in
+ * non-DOM environments — the box/edge path then falls back to the empty-collapse
+ * box rect. NEVER touches the render canvas (a canvas holds one context type — a
+ * 2D ctx there would break WebGL).
+ *
+ * When an `atlasCanvasFactory` is provided (the golden harness passes a
+ * FONT-PINNED one), the measure canvas comes from that SAME factory, so box
+ * width is measured with the IDENTICAL font the atlas rasterizes with AND the
+ * Canvas2D reference draws with — otherwise the box would be sized with the
+ * system font and the atlas with the pinned font, drifting the box width.
  */
-function createMeasureService(): ((text: string, font: string) => number) | null {
-  const g = globalThis as {
-    OffscreenCanvas?: new (w: number, h: number) => { getContext(t: "2d"): CanvasRenderingContext2D | null };
-    document?: { createElement(tag: "canvas"): HTMLCanvasElement };
-  };
+function createMeasureService(
+  atlasCanvasFactory?: GraphRendererOptions["atlasCanvasFactory"],
+): ((text: string, font: string) => number) | null {
   let ctx: CanvasRenderingContext2D | null = null;
   try {
-    if (typeof g.OffscreenCanvas === "function") {
-      ctx = new g.OffscreenCanvas(1, 1).getContext("2d");
-    } else if (g.document?.createElement) {
-      ctx = g.document.createElement("canvas").getContext("2d");
+    if (atlasCanvasFactory) {
+      ctx = atlasCanvasFactory(1, 1)?.ctx ?? null;
+    }
+    if (!ctx) {
+      const g = globalThis as {
+        OffscreenCanvas?: new (w: number, h: number) => { getContext(t: "2d"): CanvasRenderingContext2D | null };
+        document?: { createElement(tag: "canvas"): HTMLCanvasElement };
+      };
+      if (typeof g.OffscreenCanvas === "function") {
+        ctx = new g.OffscreenCanvas(1, 1).getContext("2d");
+      } else if (g.document?.createElement) {
+        ctx = g.document.createElement("canvas").getContext("2d");
+      }
     }
   } catch {
     return null;
@@ -978,7 +990,8 @@ export function createGraphRenderer(
   // text atlas (#199 pixel-fit + width). Built once; null in non-DOM envs (the
   // edge path then uses the empty-collapse box rect; the box path then collapses
   // unlabelled too — both match Canvas2D's measureText-less behaviour).
-  const measureLabelWidth = edgeRenderer || boxRenderer ? createMeasureService() ?? undefined : undefined;
+  const measureLabelWidth =
+    edgeRenderer || boxRenderer ? createMeasureService(options.atlasCanvasFactory) ?? undefined : undefined;
   const edgeMeasureLabelWidth = measureLabelWidth;
   let lastNonFiniteCount = 0;
   let state: RendererState = {

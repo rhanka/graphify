@@ -164,21 +164,26 @@ float roundedBoxSDF(vec2 p, vec2 b, float r) {
 
 void main() {
   float d = roundedBoxSDF(v_local, v_half, v_corner_r);
-  float aa = max(fwidth(d), 1e-4);
+  // Antialias over ~1 device pixel, but never let a large fwidth on software GL
+  // wash a thin (sub-pixel) stroke to near-zero coverage: cap the AA half-width
+  // so a 1.5px-at-DPR1 border keeps a solid core like Canvas2D's stroke.
+  float aa = clamp(fwidth(d), 1e-4, 0.75);
 
   // Interior coverage: inside the rounded-box outline (d <= 0).
   float fillCov = 1.0 - smoothstep(-aa, aa, d);
-  // Border ring: a band of half-width v_border centred on the outline (|d| ~ 0).
-  // Canvas2D strokes a line of width 2·v_border centred on the path, so the
-  // ring spans d in [-v_border, +v_border].
-  float borderCov =
-      (1.0 - smoothstep(v_border - aa, v_border + aa, abs(d)));
+
+  // Border ring: Canvas2D strokes a line of total width 2·v_border CENTRED on
+  // the path, so the ring is the band |d| <= v_border. We give it a fully
+  // opaque CORE (|d| <= v_border - aa) and feather only the outer ~1px rim, so
+  // the stroke reads at full node-colour like the Canvas2D stroke (a pure
+  // smoothstep over the whole half-width washes a thin stroke to a faint sliver).
+  float inner = max(0.0, v_border - aa);
+  float borderCov = 1.0 - smoothstep(inner, v_border + aa, abs(d));
 
   // Composite: translucent fill first, border ON TOP (Canvas2D fills then
-  // strokes). Premultiply-free over: out = border over fill.
+  // strokes). Straight-alpha "over": out = border over fill.
   vec4 fill = vec4(v_fill.rgb, v_fill.a * fillCov);
   vec4 border = vec4(v_borderCol.rgb, v_borderCol.a * borderCov);
-  // border over fill
   float oa = border.a + fill.a * (1.0 - border.a);
   vec3 orgb = oa > 0.0 ? (border.rgb * border.a + fill.rgb * fill.a * (1.0 - border.a)) / oa : vec3(0.0);
   if (oa <= 0.0) discard;
