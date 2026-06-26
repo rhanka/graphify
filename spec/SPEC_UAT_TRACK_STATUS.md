@@ -1,5 +1,42 @@
 # SPEC_UAT_TRACK_STATUS
 
+
+## Refresh — 2026-06-26 after PR #219
+
+- Baseline: `origin/main` `8e1a25c` (`feat(llm): honor direct provider base URL envs (#219)`).
+- `track_validate`: h2a Track peer reported **OK, 190 events**; no `.track` corruption.
+- `track_report` at this baseline shows the current `graphify-conductor` top-level board: WP0/WP2/WP3/WP6 plus mystery QA in DONE without `--require-accepted`, WP8 in AWAITED, and WP1/WP4/WP5/WP7 plus UAT follow-ups in TO-DO/in-progress.
+- `track_status level=wp` is **not the same projection** as `track_report`: it rolls up only items explicitly tagged `role=workpackage`. The older agent-stats / GraphCanvas UAT / descriptions / codex-headless items are role=workpackage; WP0-WP8 are mostly top-level items titled “WPn” but not role=workpackage.
+- Therefore the apparent mismatch where agent-stats appears as `DROPPED 0/0` in `status(level=wp)` is a rollup/presentation artifact for leaf workpackages with no active child leaves, not evidence that the shipped agent-stats product was dropped.
+
+### Current focused status
+
+| Area | Current status | Track hygiene / next action |
+| --- | --- | --- |
+| Agent-stats | Product is shipped and documented (`graphify agent-stats`, `report`, `sync`, `sessions`, `wp`, `project-graph`; PRs #142/#151/#154/#203; README/CHANGELOG current). Track peer notes item `01KTSBMC1HJ1N8XMQYK17CGDAP` has pass evidence at older commit `5b3b1b...` but acceptance is stale at `8e1a25c`. | Re-run/re-stamp acceptance against current main if it remains delivered; avoid interpreting the `status(level=wp)` DROPPED rollup as product state. |
+| ACLP-AM | WP4 `01KTKVB57HBGPP7HA9Q25F5FMV` remains `in-progress` / `unknown` in Track. Canevas peer confirms substantial G1/G2/G4 substrate is shipped: Track-G contracts, hierarchy specs, workspace shell/state, ACLP-AM studio routing, sidecar emitters (`hierarchies.json`, `hierarchy-index.json`, `scene-hierarchies.json`, `workspace-manifest.json`) and targeted workspace/hierarchy/studio tests passed (79 + 40 tests). | Do not call DONE until ACLP-AM representative UAT + reviewer/conductor acceptance is attached. Candidate next PR/UAT: wire/verify `scene-hierarchies.json` + `workspace-manifest.json` through studio export/loader with regression tests, run ACLP-AM fixture covering lifecycle statuses (`guessed/candidate/validated/rejected/superseded`) in workspace/reconciliation/evidence routes, then add Track evidence/pass. |
+| PDF immo / cited-source visualization | Not currently visible as an active Track WP in `graphify-conductor`; there is an untracked local draft `spec/SPEC_WP_CITED_SOURCE_VIZ.md`. Radar-immo peer reports its source-viewer side is already shipped for raw PDF display and fallback highlight: `GET /api/documents/raw`, safe `rawRef` normalization, evidence/docRefs DTO fields, `SignalPdfOverlay` using internal raw bytes, page opening, bbox highlight or excerpt text-match fallback. Remaining gap is Graphify-side structured cited-source emission. | Import/create a Track item/WP before implementation. Acceptance should require Graphify refs like `[{docSha?, rawRef, sourceUrl?, page, bbox?, excerpt|citation, quoteSpan?}]`, `page` 1-based, `bbox` normalized page fractions compatible with Radar, and Mistral OCR page/block coordinate normalization. Minimum shippable fallback is `rawRef + page + excerpt`; bbox completeness should be tracked when absent. |
+| WebGL2 / GraphCanvas | Current active item is WP1 Renderer GraphCanvas rich parity (`01KTKVAF...`) in-progress/unknown. There is also a later role=workpackage GraphCanvas UAT v2 item (`01KTSBMG...`) in-progress/unknown. WebGL2 canary PRs #211/#212/#214/#216/#217 are merged and CI golden-webgl is green; default remains canvas2d. | Choose one canonical Track parent: either make WP1 the role=workpackage parent and nest GraphCanvas UAT v2/WebGL2 leaves below it, or stop using `status(level=wp)` for this board. |
+
+### Delegation wave — 2026-06-26
+
+The conductor deposited h2a inbox mandates to live peers for subagent-style inspection:
+
+- `claude:graphify:f9fbe548d3a5`: agent-stats + WebGL2 status/next PRs/tests.
+- `claude:radar-immobilier:218b777ad77d`: PDF immo source-viewer / citation adapter mapping; response received, confirming radar viewer/API is shipped and Graphify structured refs/OCR coordinate normalization are the remaining gap.
+- `claude:track:f55247525383`: Track report/status/canevas sanity; response received and summarized above.
+- `claude:canevas:b8d847ee443f`: ACLP-AM G1/G2/G4 / hierarchy/workspace alignment; response received, confirming substantial implementation/tests but no Track strict-DONE until representative ACLP-AM UAT + reviewer/conductor acceptance.
+
+### Recommended Track cleanup
+
+1. Decide the canonical hierarchy: either convert WP0-WP8 into actual `role=workpackage` items / parents, or document that `track_report` is the conductor board and `status(level=wp)` is the older workpackage forest.
+2. Re-stamp stale delivered items at current baseline (`8e1a25c`): agent-stats, WP0, mystery QA, and any other `done/stale` rows still considered accepted.
+3. For ACLP-AM and WebGL/GraphCanvas, attach concrete evidence links and acceptance runs before marking done.
+4. For PDF immo/cited-source visualization, first create/import a Track item from the draft spec before code work so the scope appears in report/status.
+5. File a Track-side UX issue: `status(level=wp)` should not show a realized leaf workpackage with no children as `DROPPED 0/0`; it should reflect the item bucket or display `n/a/leaf-empty`.
+
+---
+
 ## Snapshot
 
 - Role: Graphify WP-UAT-TRACK background status report.
