@@ -87,7 +87,13 @@ precision mediump float;
 in vec4 v_color;
 out vec4 outColor;
 void main() {
-  outColor = v_color;
+  // PREMULTIPLIED alpha output (paired with blendFunc(ONE, ONE_MINUS_SRC_ALPHA)).
+  // The context is premultipliedAlpha:true (the default), so the framebuffer must
+  // hold premultiplied RGBA. With the old straight output + blendFunc(SRC_ALPHA,
+  // ONE_MINUS_SRC_ALPHA) the framebuffer ALPHA was under-accumulated (a·a instead
+  // of a), so dimmed (alpha<1) glyphs composited TOO TRANSPARENT and AA rims read
+  // as dark fringes. Emitting premultiplied rgb·a keeps rgb and alpha consistent.
+  outColor = vec4(v_color.rgb * v_color.a, v_color.a);
 }
 `;
 
@@ -436,7 +442,11 @@ export function createWebGLShapeRenderer(context: GL2 | null): WebGLShapeRendere
     if (shapeProgram.uniforms.maxDepth) gl.uniform1f(shapeProgram.uniforms.maxDepth, Math.max(1, frame.nodeCount));
 
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    // PREMULTIPLIED-alpha "over": the fragment emits rgb·a, so the source factor
+    // is ONE (not SRC_ALPHA). This composites alpha<1 glyphs correctly (the old
+    // SRC_ALPHA factor squared the source alpha into the framebuffer, dimming
+    // glyphs too far + dark-fringing AA rims under premultipliedAlpha:true).
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     // Border ring pass first (under the fill), then the interior fill pass, so a
     // hollow ring / bold outline sits beneath the (translucent or solid) centre.

@@ -210,7 +210,13 @@ void main() {
     if (coverage <= 0.0) discard;
   }
 
-  outColor = vec4(v_color.rgb, v_color.a * coverage);
+  // PREMULTIPLIED alpha output (paired with blendFunc(ONE, ONE_MINUS_SRC_ALPHA)).
+  // The effective alpha is the edge alpha times the analytic coverage; emit
+  // rgb·a so the framebuffer stays premultiplied (premultipliedAlpha:true). The
+  // old straight output + SRC_ALPHA factor under-accumulated the framebuffer
+  // alpha (squared coverage), washing alpha<1 edges out + dark-fringing AA rims.
+  float a = v_color.a * coverage;
+  outColor = vec4(v_color.rgb * a, a);
 }
 `;
 
@@ -256,7 +262,9 @@ precision highp float;
 in vec4 v_color;
 out vec4 outColor;
 void main() {
-  outColor = v_color;
+  // PREMULTIPLIED alpha (paired with blendFunc(ONE, ONE_MINUS_SRC_ALPHA)), so an
+  // alpha<1 arrowhead composites the same way as its (now premultiplied) edge.
+  outColor = vec4(v_color.rgb * v_color.a, v_color.a);
 }
 `;
 
@@ -561,7 +569,10 @@ export function createWebGLEdgeRenderer(context: GL2 | null): WebGLEdgeRenderer 
     const { capsules, arrows } = buildEdgeInstances(frame);
 
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    // PREMULTIPLIED-alpha "over": the capsule/arrow fragments emit rgb·a, so the
+    // source factor is ONE. Fixes alpha<1 edges compositing too transparent + the
+    // dark AA fringe the old SRC_ALPHA factor produced under premultipliedAlpha.
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     if (capsules.length > 0) {
       gl.useProgram(capsule.program);
