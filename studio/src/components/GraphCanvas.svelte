@@ -85,15 +85,20 @@
   let pixelRatio = 1;
   let mounted = false;
 
-  // Dual-render BETA switch (Ctrl+Shift+X). Mode A = canvas2d (DEFAULT). Mode B
-  // = WebGL2 beta. Default unchanged: the studio always boots on canvas2d.
-  let activeBackend = $state(CANVAS2D_BACKEND);
-  // True when a switch to mode B found no WebGL2 context and reverted to A.
+  // Dual-render switch (Ctrl+Shift+X). Mode A = canvas2d, Mode B = WebGL2.
+  // P6 FLIP: the studio now BOOTS on WebGL2 (instancedShapes). `ensureRenderer`
+  // uses the EXISTING graceful fallback — when no WebGL2 context is available it
+  // reverts to canvas2d (mode A) and sets `backendUnavailable`. Ctrl+Shift+X
+  // still toggles both ways.
+  let activeBackend = $state(WEBGL2_BACKEND);
+  // True when WebGL2 was requested but no context was available, so we reverted
+  // to canvas2d — set at boot (fallback) or on a failed manual switch.
   let backendUnavailable = $state(false);
-  // Render-mode badge. HIDDEN by default (clean UI on boot); the FIRST
-  // Ctrl+Shift+X / badge-click reveals it, after which it stays visible and
-  // reflects the live backend on every subsequent switch. `justToggled` briefly
-  // pulses it right after a switch.
+  // Render-mode badge. On a successful WebGL2 boot it stays HIDDEN (clean UI);
+  // the FIRST Ctrl+Shift+X / badge-click reveals it. When the WebGL2 boot FALLS
+  // BACK to canvas2d (`backendUnavailable`) the badge is REVEALED immediately so
+  // the user sees the unavailable state. Once visible it reflects the live
+  // backend on every subsequent switch; `justToggled` briefly pulses it.
   let switchActivated = $state(false);
   let justToggled = $state(false);
   let indicatorTimer = null;
@@ -191,10 +196,11 @@
   //
   // The renderer is built from `activeBackend` (the dual-render switch):
   //   Mode A = createGraphRenderer(canvas, { backend: "canvas2d", pixelRatio }).
-  //   Mode B = { backend: "webgl", instancedShapes: true, pixelRatio }.
-  // `createBackendRenderer` degrades gracefully: when mode B is requested but no
-  // WebGL2 context is available, it reverts to canvas2d and we flag the
-  // unavailable indicator.
+  //   Mode B = { backend: "webgl", instancedShapes: true, pixelRatio }  ← the
+  //            BOOT DEFAULT after the P6 flip.
+  // `createBackendRenderer` degrades gracefully: when mode B (the default) is
+  // requested but no WebGL2 context is available, it reverts to canvas2d and we
+  // flag `backendUnavailable` (which reveals the badge in its unavailable state).
   function ensureRenderer(force = false) {
     if (!canvas) return false;
 
@@ -1082,10 +1088,12 @@
     aria-hidden="true"
   ></canvas>
 
-  <!-- Render-backend badge. HIDDEN until the first Ctrl+Shift+X (clean default
-       UI); once revealed it stays visible, reflects the live mode, and doubles
-       as a click target to switch (same as the shortcut). -->
-  {#if switchActivated}
+  <!-- Render-backend badge. On a successful WebGL2 boot it stays HIDDEN until the
+       first Ctrl+Shift+X (clean default UI); a boot fallback to canvas2d
+       (`backendUnavailable`) REVEALS it immediately so the unavailable state is
+       visible. Once revealed it reflects the live mode and doubles as a click
+       target to switch (same as the shortcut). -->
+  {#if switchActivated || backendUnavailable}
     <button
       type="button"
       class="render-indicator"
