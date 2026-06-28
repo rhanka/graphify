@@ -42,8 +42,24 @@
   const NODE_TIGHT_SLOP = 4;
   const HOVER_EDGE_COLOR = [37, 99, 235, 255];
   const MERGE_ANIMATION_DURATION_MS = 520;
-  // Hide edges during pan/zoom when nodes+edges exceed this, for interaction fluidity on large graphs.
-  const EDGE_SKIP_THRESHOLD = 1000;
+  // CANVAS2D ONLY: hide edges during active pan/zoom/drag when nodes+edges exceed
+  // this, for interaction fluidity (a legacy SVG-era guard). WebGL2 NEVER skips
+  // (GPU-instanced edges are cheap) — see `skipEdgesOnInteract`.
+  //
+  // Threshold raised 1000 → 6000 from a Skia/Canvas2D bench (Skia is the SAME
+  // rasterizer Chrome's 2D canvas uses), median per-frame full render() at
+  // 1440×900 DPR1 (.graphify/scratch/edge-skip-bench.mjs):
+  //   ·   1000 obj (old threshold): ~2.9 ms  (~343 fps) — skipping was absurdly
+  //       over-conservative for graphs this cheap.
+  //   ·   mystery 5676 obj (1983n/3693e): ~17 ms (~58 fps), ~13 ms of it edges.
+  //   ·   5k edges  / 7500 obj:  ~22.5 ms (~44 fps)
+  //   ·  10k edges  / 15000 obj: ~45 ms   (~22 fps)
+  //   ·  20k edges  / 28000 obj: ~87 ms   (~11 fps)
+  // 6000 sits just ABOVE mystery scale so typical graphs (incl. mystery) keep
+  // edges live during interaction (~58 fps, smooth), and just BELOW the 5k-edge
+  // step so denser graphs — and especially 10k+ edges (the non-regression guard)
+  // — still skip edges during pan/zoom to stay fluid. (See PR description.)
+  const EDGE_SKIP_THRESHOLD = 6000;
   // Delay before restoring edges after the last wheel/zoom event settles.
   const ZOOM_SETTLE_MS = 150;
   // Boxed labels: show a label for nodes whose degree >= this fraction of the max
@@ -132,8 +148,15 @@
   // + edge endpoints): a recompute that yields the SAME content does NOT refit,
   // which also preserves a dragged node's position across an incidental rebuild.
   let lastSceneKey = null;
-  // True when the current update path is a real scene/graph-data change (mount/new graph/resize).
-  let skipEdgesOnInteract = false;
+  // BACKEND-AWARE edge-skip during active pan/zoom/drag. WebGL2 NEVER skips
+  // (GPU-instanced edges are cheap), so this is false whenever the active backend
+  // is WebGL2 — edges always render during interaction. On Canvas2D it skips only
+  // past EDGE_SKIP_THRESHOLD objects. `$derived` so a Ctrl+Shift+X backend flip
+  // (or a boot fallback to canvas2d) re-evaluates it immediately.
+  const skipEdgesOnInteract = $derived(
+    activeBackend !== WEBGL2_BACKEND &&
+      (scene?.nodes?.length ?? 0) + (scene?.edges?.length ?? 0) > edgeSkipThreshold,
+  );
   // Zoom-settle debounce timer: full-edge render after the last wheel event settles.
   let zoomSettleTimer = null;
 
@@ -470,10 +493,8 @@
     clearHoveredEdge({ notify: false, render: false });
     computeNodeDegrees();
     reapplyDraggedPositions();
-
-    // Skip edges during pan/zoom only when the object count is large enough.
-    const objectCount = (scene?.nodes?.length ?? 0) + (scene?.edges?.length ?? 0);
-    skipEdgesOnInteract = objectCount > edgeSkipThreshold;
+    // NB: `skipEdgesOnInteract` is a backend-aware `$derived` (declared above) —
+    // no imperative recompute here, so a backend flip updates it reactively.
   }
 
   // Re-write any user-dragged node positions onto the freshly-built payload so a
