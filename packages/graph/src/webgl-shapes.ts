@@ -360,10 +360,24 @@ export function buildShapeInstances(frame: WebGLShapeFrame): ShapeInstanceSet {
   return { fill, border, nonFiniteCount };
 }
 
+/**
+ * UAT polish (fix/webgl-aa-and-stroke-weight): draw the WebGL2 beta node-shape
+ * outline a touch HEAVIER than the exact Canvas2D ink-mass. The merged parity fix
+ * (2266cfa) centred the ring at the exact Canvas2D width, but real-browser UAT
+ * read the borders slightly THIN. We scale the centred-ring half-width by this
+ * factor (~12% thicker, symmetric about the drawn radius). Mirrors the edge boost
+ * (WEBGL_STROKE_WEIGHT_BOOST in webgl-edges.ts). Canvas2D (BORDER_WIDTH_* in
+ * render-geometry.ts) is untouched — only this WebGL ring widens, lifting the
+ * golden border-ink ratio further above its 0.6 floor.
+ */
+const WEBGL_OUTLINE_WEIGHT_BOOST = 1.12;
+
 /** Stroke HALF-width in device px: (bold?BOLD:NORMAL)·PR / 2 (Canvas2D centres
- *  a stroke of (bold?BOLD:NORMAL)·PR on the outline, so each side is HALF). */
+ *  a stroke of (bold?BOLD:NORMAL)·PR on the outline, so each side is HALF),
+ *  scaled by WEBGL_OUTLINE_WEIGHT_BOOST so the WebGL beta ring reads a touch
+ *  HEAVIER than Canvas2D (UAT polish) — Canvas2D's own stroke is unchanged. */
 function strokeHalfWidth(bold: boolean, pixelRatio: number): number {
-  return ((bold ? BORDER_WIDTH_BOLD : BORDER_WIDTH_NORMAL) * pixelRatio) / 2;
+  return (((bold ? BORDER_WIDTH_BOLD : BORDER_WIDTH_NORMAL) * pixelRatio) / 2) * WEBGL_OUTLINE_WEIGHT_BOOST;
 }
 
 function pushInstance(
