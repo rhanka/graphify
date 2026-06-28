@@ -22,6 +22,10 @@
     paintBoxTextOverlay as paintBoxOverlay,
     toggleBackend,
   } from "../lib/renderBackend.js";
+  import {
+    createHoverIntent,
+    shouldDelayConnectedDim,
+  } from "../lib/hoverIntent.js";
 
   const EMPTY_SCENE = {
     nodes: [],
@@ -114,6 +118,10 @@
   let hoveredEdge = $state(null);
   let hoveredNode = $state(null);
   let hoveredNodeId = $state(null);
+  // Hover-intent dwell timer controller (Task B): defers the rest-of-graph
+  // connected-dim until the pointer DWELLS, but ONLY before the first
+  // selection/focus, so a pre-selection sweep across the graph no longer strobes.
+  const hoverIntent = createHoverIntent(() => applyConnectedDim());
 
   // Scene identity tracking so we only auto-fit on a genuine new graph (not selection/focus).
   let lastScene = null;
@@ -378,6 +386,9 @@
 
   // --- Pointer down: node drag (over a node) or pan (over the background) ---
   function handlePointerDown(event) {
+    // A pan/drag is starting — cancel any pending hover-intent dwell so it can't
+    // fire (and dim) mid-interaction.
+    hoverIntent.cancel();
     const id = pickNode(event);
 
     if (id) {
@@ -852,21 +863,41 @@
       hoveredNode = null;
     }
 
-    if (mounted && payload) {
-      const style = buildConnectedDimStyle(payload, {
-        selectedIds: selectedIds ?? [],
-        focusId,
-        hoveredNodeId,
-      });
-      if (renderer && style) {
-        payload = { ...payload, style };
-        renderer.setStyle(style);
-        renderNow();
-      }
-    }
+    // Rest-of-graph connected-dim. Gated by hover-intent: immediate when a
+    // selection/focus already exists (unchanged behavior) OR when the hover is
+    // clearing (restore base now); otherwise DEFERRED behind a ~200ms dwell so a
+    // pre-first-selection sweep across the graph no longer strobes dim/undim.
+    requestConnectedDim(Boolean(nodeId));
 
-    // Always-on label for the hovered node (plus the god-node set).
+    // The hovered node's OWN feedback (tooltip + label) stays immediate — only
+    // the rest-of-graph dim is delayed.
     updateLabels();
+  }
+
+  // Apply the connected-dim style for the CURRENT hover/selection/focus through
+  // the style buffers (no full payload rebuild). Pulled out of setHoveredNode so
+  // the hover-intent dwell timer can invoke it once the pointer settles.
+  function applyConnectedDim() {
+    if (!(mounted && payload)) return;
+    const style = buildConnectedDimStyle(payload, {
+      selectedIds: selectedIds ?? [],
+      focusId,
+      hoveredNodeId,
+    });
+    if (renderer && style) {
+      payload = { ...payload, style };
+      renderer.setStyle(style);
+      renderNow();
+    }
+  }
+
+  // Gate the rest-of-graph dim through the hover-intent dwell. Immediate when a
+  // selection/focus already exists OR when the hover is clearing (no target →
+  // restore base now); otherwise deferred until the pointer dwells.
+  function requestConnectedDim(hasHoverTarget) {
+    const immediate =
+      !shouldDelayConnectedDim({ selectedIds, focusId }) || !hasHoverTarget;
+    hoverIntent.request({ immediate });
   }
 
   function handlePointerLeave() {
@@ -996,6 +1027,9 @@
     // zoom and pan instead of resetting the view.
     selectedIds;
     focusId;
+    // A selection/focus appearing supersedes any pending pre-selection hover
+    // dwell — updateSelection() rebuilds the (selection-dimmed) style itself.
+    hoverIntent.cancel();
     updateSelection();
   });
 
@@ -1036,6 +1070,7 @@
       window.removeEventListener("keydown", handleKeydown);
       if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
       if (indicatorTimer !== null) window.clearTimeout(indicatorTimer);
+      hoverIntent.cancel();
       cancelMergeFrame();
       renderer?.destroy();
       renderer = null;
