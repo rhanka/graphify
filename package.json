@@ -179,11 +179,11 @@
     "tree-sitter": "^0.26.8"
   },
   "devDependencies": {
+    "@sentropic/design-system-themes": "^0.11.0",
+    "@sentropic/design-system-tokens": "^0.11.0",
     "@types/node": "^25.8.0",
     "tsup": "^8.3.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "@sentropic/design-system-themes": "^0.11.0",
-    "@sentropic/design-system-tokens": "^0.11.0"
+    "vitest": "^4.1.6"
   }
 }
