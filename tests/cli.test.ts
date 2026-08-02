@@ -448,6 +448,31 @@ describe("check-update CLI", () => {
 });
 
 describe("query CLI", () => {
+  it("keeps two-character non-English terms searchable", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "graphify-cli-query-cjk-"));
+    tempDirs.push(dir);
+    const graphDir = join(dir, ".graphify");
+    mkdirSync(graphDir, { recursive: true });
+    const graphPath = join(graphDir, "graph.json");
+    writeFileSync(
+      graphPath,
+      JSON.stringify({
+        directed: false,
+        graph: {},
+        nodes: [
+          { id: "concept", label: "认识", source_file: "认识.md", file_type: "document" },
+        ],
+        links: [],
+      }),
+      "utf-8",
+    );
+
+    const result = await runCli(["query", "认识", "--graph", graphPath], dir);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.logs[0]).toContain("NODE 认识 [");
+  });
+
   it("prefers exact node label matches over longer substring matches", async () => {
     const dir = mkdtempSync(join(tmpdir(), "graphify-cli-query-"));
     tempDirs.push(dir);
