@@ -4804,6 +4804,10 @@ export async function extractGo(filePath: string, rootDir?: string): Promise<Ext
               if (pathNode) {
                 const raw = _readText(pathNode, source).replace(/^"|"$/g, "");
                 const tgtNid = goImportNodeId(raw);
+                // Keep external and standard-library imports visible in the
+                // graph. Previously only the edge was emitted, leaving a
+                // dangling target that buildFromJson silently discarded.
+                addNode(tgtNid, raw, spec.startPosition.row + 1);
                 addEdge(fileNid, tgtNid, "imports_from", spec.startPosition.row + 1);
               }
             }
@@ -4813,6 +4817,10 @@ export async function extractGo(filePath: string, rootDir?: string): Promise<Ext
           if (pathNode) {
             const raw = _readText(pathNode, source).replace(/^"|"$/g, "");
             const tgtNid = goImportNodeId(raw);
+            // Keep external and standard-library imports visible in the
+            // graph. Previously only the edge was emitted, leaving a
+            // dangling target that buildFromJson silently discarded.
+            addNode(tgtNid, raw, child.startPosition.row + 1);
             addEdge(fileNid, tgtNid, "imports_from", child.startPosition.row + 1);
           }
         }

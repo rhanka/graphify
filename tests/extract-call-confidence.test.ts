@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { extract, extractGo, extractJs, extractPhp } from "../src/extract.js";
+import { buildFromJson } from "../src/build.js";
 
 function strip(label: string | undefined): string {
   return String(label ?? "").replace(/\(?\)$/g, "").replace(/^\./, "");
@@ -114,6 +115,46 @@ describe("AST call edge confidence", () => {
     const importEdge = result.edges.find((edge) => edge.relation === "imports_from");
 
     expect(importEdge?.target).toBe("go_pkg_context");
+  });
+
+  it("preserves Go imports as package nodes in the built graph", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "graphify-extract-go-import-node-"));
+    cleanupDirs.push(dir);
+
+    const filePath = join(dir, "main.go");
+    writeFileSync(
+      filePath,
+      [
+        "package sample",
+        "",
+        "import \"fmt\"",
+        "",
+        "func Hello() string {",
+        "  return fmt.Sprint(\"hello\")",
+        "}",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const extraction = await extractGo(filePath, dir);
+    const packageNode = extraction.nodes.find((node) => node.id === "go_pkg_fmt");
+    const importEdge = extraction.edges.find(
+      (edge) => edge.relation === "imports_from" && edge.target === "go_pkg_fmt",
+    );
+
+    expect(packageNode?.label).toBe("fmt");
+    expect(importEdge).toBeDefined();
+
+    const graph = buildFromJson(extraction, { root: dir });
+    expect(graph.hasNode("go_pkg_fmt")).toBe(true);
+    expect(
+      graph.edges().some((edge) => {
+        const attrs = graph.getEdgeAttributes(edge);
+        return attrs.relation === "imports_from"
+          && (graph.source(edge) === "go_pkg_fmt" || graph.target(edge) === "go_pkg_fmt");
+      }),
+    ).toBe(true);
   });
 
   it("skips ambiguous call targets when multiple symbols share the same name", async () => {
