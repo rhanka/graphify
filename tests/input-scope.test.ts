@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -166,7 +166,7 @@ describe("input scope inventory", () => {
     });
   });
 
-  it("counts large ignored inventories without overflowing the git stdout buffer", () => {
+  it("counts large ignored inventories as collapsed entries without overflowing the git stdout buffer", () => {
     initRepo();
     write(".gitignore", ".graphify/\n");
     commit(".gitignore");
@@ -178,11 +178,22 @@ describe("input scope inventory", () => {
     for (let index = 0; index < 5000; index += 1) {
       writeFileSync(join(ignoredDir, `file-${String(index).padStart(4, "0")}.json`), "{}\n", "utf-8");
     }
-
-    const inventory = inspectInputScope(tmpDir, {
-      mode: "auto",
-      source: "default-auto",
-    });
+    const tracePath = join(tmpDir, ".git", "input-scope-trace.log");
+    const previousGitTrace = process.env.GIT_TRACE;
+    process.env.GIT_TRACE = tracePath;
+    let inventory: ReturnType<typeof inspectInputScope>;
+    try {
+      inventory = inspectInputScope(tmpDir, {
+        mode: "auto",
+        source: "default-auto",
+      });
+    } finally {
+      if (previousGitTrace === undefined) {
+        delete process.env.GIT_TRACE;
+      } else {
+        process.env.GIT_TRACE = previousGitTrace;
+      }
+    }
 
     expect(inventory.candidateFiles).toEqual([
       ".gitignore",
@@ -194,7 +205,10 @@ describe("input scope inventory", () => {
       candidate_count: 2,
       included_count: 2,
       excluded_untracked_count: 0,
-      excluded_ignored_count: 5000,
+      excluded_ignored_count: 1,
     });
+    expect(readFileSync(tracePath, "utf-8")).toMatch(
+      /ls-files.*--others.*-i.*--exclude-standard.*--directory/,
+    );
   });
 });
