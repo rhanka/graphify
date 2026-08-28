@@ -177,7 +177,18 @@ function buildGitInventory(
   const candidateFiles = appendMemoryFiles(root, context.gitRoot, existingFiles);
   const target = pathspecForPrefix(context.prefix);
   const excludedUntrackedCount = countGitPaths(context, ["ls-files", "--others", "--exclude-standard", "--", target]);
-  const excludedIgnoredCount = countGitPaths(context, ["ls-files", "--others", "-i", "--exclude-standard", "--", target]);
+  // Ignored media/cache trees can make the raw path listing exceed execGit's
+  // stdout buffer even though this value is only diagnostic metadata. Count
+  // Git's collapsed ignored entries instead of materializing every file path.
+  const excludedIgnoredCount = countGitPaths(context, [
+    "ls-files",
+    "--others",
+    "-i",
+    "--exclude-standard",
+    "--directory",
+    "--",
+    target,
+  ]);
 
   return {
     candidateFiles,
