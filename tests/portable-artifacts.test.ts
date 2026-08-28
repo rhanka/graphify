@@ -173,6 +173,59 @@ describe("portable graphify artifacts", () => {
     );
   });
 
+  it("accepts API route labels while still rejecting absolute source paths", () => {
+    const root = tempProject();
+    const graphifyDir = join(root, ".graphify");
+    mkdirSync(graphifyDir, { recursive: true });
+    writeFileSync(
+      join(graphifyDir, "graph.json"),
+      JSON.stringify({
+        nodes: [
+          { id: "route", label: "/api/settings/*", source_file: "src/routes.ts" },
+          { id: "message", label: "/msg/{id}/acttxt", source_file: "src/routes.ts" },
+          { id: "source", label: "Source", source_file: join(root, "src", "leaked.ts") },
+        ],
+        links: [],
+      }, null, 2),
+      "utf-8",
+    );
+
+    const result = scanPortableGraphifyArtifacts(graphifyDir);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        path: "graph.json",
+        jsonPath: "$.nodes[2].source_file",
+        value: join(root, "src", "leaked.ts"),
+        kind: "absolute_path",
+      }),
+    ]);
+  });
+
+  it("does not mistake escaped bundle syntax for a Windows path", () => {
+    const root = tempProject();
+    const graphifyDir = join(root, ".graphify");
+    mkdirSync(graphifyDir, { recursive: true });
+    writeFileSync(
+      join(graphifyDir, "studio.html"),
+      "const syntax = 'x:\\\\'; const leaked = 'C:\\\\Users\\\\alice\\\\source.ts';\n",
+      "utf-8",
+    );
+
+    const result = scanPortableGraphifyArtifacts(graphifyDir);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        path: "studio.html",
+        jsonPath: "line:1",
+        value: "C:\\\\Users\\\\alice\\\\source.ts",
+        kind: "absolute_path",
+      }),
+    ]);
+  });
+
   it("ignores local lifecycle metadata with absolute worktree paths", () => {
     const root = tempProject();
     const graphifyDir = join(root, ".graphify");
