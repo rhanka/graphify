@@ -11,6 +11,7 @@ import {
   defaultTranscriptsDir,
   legacyGraphPath,
   resolveGraphInputPath,
+  isPathInside,
   resolveGraphifyPaths,
 } from "../src/paths.js";
 
@@ -95,5 +96,35 @@ describe("graphify path contract", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("isPathInside", () => {
+  const base = resolve(join(tmpdir(), "graphify-is-path-inside", ".graphify"));
+
+  it("accepts a direct child using platform-native separators", () => {
+    // Regression: path.resolve() yields backslashes on Windows, so a
+    // `base + "/"` prefix test rejected every child of the base directory.
+    expect(isPathInside(join(base, "graph.json"), base)).toBe(true);
+  });
+
+  it("accepts a nested child", () => {
+    expect(isPathInside(join(base, "cache", "ast", "x.json"), base)).toBe(true);
+  });
+
+  it("accepts the base directory itself", () => {
+    expect(isPathInside(base, base)).toBe(true);
+  });
+
+  it("rejects a parent traversal", () => {
+    expect(isPathInside(join(base, "..", "..", "etc", "passwd"), base)).toBe(false);
+  });
+
+  it("rejects a sibling that merely shares the base name prefix", () => {
+    expect(isPathInside(base + "-old", base)).toBe(false);
+  });
+
+  it("normalises both operands before comparing", () => {
+    expect(isPathInside(join(base, "sub", "..", "graph.json"), base)).toBe(true);
   });
 });

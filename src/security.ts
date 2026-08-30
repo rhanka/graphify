@@ -6,7 +6,7 @@ import { existsSync } from "node:fs";
 import { URL } from "node:url";
 import * as dns from "node:dns/promises";
 import * as net from "node:net";
-import { DEFAULT_GRAPHIFY_STATE_DIR, resolveGraphifyPaths } from "./paths.js";
+import { DEFAULT_GRAPHIFY_STATE_DIR, isPathInside, resolveGraphifyPaths } from "./paths.js";
 
 const ALLOWED_SCHEMES = new Set(["http:", "https:"]);
 const MAX_FETCH_BYTES = 52_428_800; // 50 MB
@@ -462,7 +462,7 @@ export function validateGraphPath(filePath: string, base?: string): string {
 
   const resolved = pathResolve(filePath);
 
-  if (!resolved.startsWith(resolvedBase + "/") && resolved !== resolvedBase) {
+  if (!isPathInside(resolved, resolvedBase)) {
     throw new Error(
       `Path '${filePath}' escapes the allowed directory ${resolvedBase}. Only paths inside ${DEFAULT_GRAPHIFY_STATE_DIR}/ are permitted.`,
     );
