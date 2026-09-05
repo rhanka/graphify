@@ -76,6 +76,10 @@ function isWindowsAbsolutePath(value: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(value);
 }
 
+function isLikelyLocalWindowsAbsolutePath(value: string): boolean {
+  return /^[A-Za-z]:[\\/]+(?:Users|Documents|Desktop|Downloads|AppData|tmp|temp|workspace|workspaces|repo|src)[\\/]+/i.test(value);
+}
+
 function hasSchemePrefix(value: string, offset: number): boolean {
   const prefix = value.slice(Math.max(0, offset - 12), offset);
   return /[A-Za-z][A-Za-z0-9+.-]:$/.test(prefix);
@@ -226,7 +230,11 @@ function pathIssueKind(
 ): PortablePathIssueKind | null {
   if (value.startsWith("../") || value === "..") return "escaped_root_path";
   if (isAbsolute(value) || isWindowsAbsolutePath(value)) {
-    if (options.embeddedText && !isWindowsAbsolutePath(value) && !isLikelyLocalAbsolutePath(value)) {
+    if (
+      options.embeddedText &&
+      ((!isWindowsAbsolutePath(value) && !isLikelyLocalAbsolutePath(value)) ||
+        (isWindowsAbsolutePath(value) && !isLikelyLocalWindowsAbsolutePath(value)))
+    ) {
       return null;
     }
     return "absolute_path";
@@ -276,7 +284,12 @@ function collectJsonIssues(
   if (value && typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
       collectStringIssues(key, path, jsonPath === "$" ? "$.<key>" : `${jsonPath}.<key>`, issues);
-      collectJsonIssues(item, path, jsonPath === "$" ? `$.${key}` : `${jsonPath}.${key}`, issues);
+      const itemPath = jsonPath === "$" ? `$.${key}` : `${jsonPath}.${key}`;
+      if (typeof item === "string" && key === "label") {
+        collectStringIssues(item, path, itemPath, issues, { direct: false, embeddedText: true });
+      } else {
+        collectJsonIssues(item, path, itemPath, issues);
+      }
     }
   }
 }
