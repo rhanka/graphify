@@ -5,11 +5,26 @@
  * as read fallbacks for one compatibility window.
  */
 import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 export const DEFAULT_GRAPHIFY_STATE_DIR = ".graphify";
 export const LEGACY_GRAPHIFY_STATE_DIR = "graphify-out";
 export const NEXT_GRAPHIFY_STATE_DIR = DEFAULT_GRAPHIFY_STATE_DIR;
+
+/**
+ * True when `childPath` is `basePath` itself, or sits inside it.
+ *
+ * Compares via `path.relative` rather than a string prefix: `path.resolve()`
+ * returns platform-native separators, so a hardcoded `base + "/"` prefix test
+ * never matches on Windows and reports every child as escaping its own parent.
+ */
+export function isPathInside(childPath: string, basePath: string): boolean {
+  const rel = relative(resolve(basePath), resolve(childPath));
+  if (rel === "") return true;
+  // A different drive or root on Windows relativizes to an absolute path.
+  if (isAbsolute(rel)) return false;
+  return rel !== ".." && !rel.startsWith(".." + sep);
+}
 
 export interface GraphifyPathOptions {
   /** Workspace root. Defaults to the current process directory. */

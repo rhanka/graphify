@@ -15,7 +15,7 @@ import {
   rmdirSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
-import { join, resolve, dirname, extname, basename } from "node:path";
+import { join, resolve, relative as pathRelative, sep, dirname, extname, basename } from "node:path";
 import { homedir, platform } from "node:os";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -52,7 +52,7 @@ import { discoverProjectConfig, loadProjectConfig } from "./project-config.js";
 import { loadOntologyProfile } from "./ontology-profile.js";
 import { loadProfileRegistries } from "./profile-registry.js";
 import { normalizeLanguageSelection } from "./description-language.js";
-import { DEFAULT_GRAPHIFY_STATE_DIR, defaultManifestPath, resolveGraphInputPath, resolveGraphifyPaths } from "./paths.js";
+import { DEFAULT_GRAPHIFY_STATE_DIR, defaultManifestPath, isPathInside, resolveGraphInputPath, resolveGraphifyPaths } from "./paths.js";
 import { normalizeSearchText, scoreSearchText } from "./search.js";
 import { makeGraphPortable, projectRootLabel, scanPortableGraphifyArtifacts } from "./portable-artifacts.js";
 import { loadOntologyPatchContext } from "./ontology-patch-context.js";
@@ -1734,12 +1734,12 @@ function resolveProjectSkillDestination(platformName: string, projectDir: string
 function projectScopeRoot(skillPath: string, projectDir: string): string {
   const absoluteProject = resolve(projectDir);
   const absoluteSkill = resolve(skillPath);
-  if (!absoluteSkill.startsWith(absoluteProject + "/") && absoluteSkill !== absoluteProject) {
+  if (!isPathInside(absoluteSkill, absoluteProject)) {
     return absoluteSkill;
   }
-  const relative = absoluteSkill.slice(absoluteProject.length + 1);
-  if (!relative) return absoluteSkill;
-  const firstSegment = relative.split("/")[0] ?? "";
+  const relativeSkill = pathRelative(absoluteProject, absoluteSkill);
+  if (!relativeSkill) return absoluteSkill;
+  const firstSegment = relativeSkill.split(sep)[0] ?? "";
   return firstSegment ? join(projectDir, firstSegment) : absoluteSkill;
 }
 
